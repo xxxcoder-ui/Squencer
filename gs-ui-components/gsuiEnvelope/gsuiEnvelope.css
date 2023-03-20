@@ -1,19 +1,17 @@
-.gsuiEnvelope {
+gsui-envelope {
 	display: grid;
 	height: 100%;
+	min-height: 76px;
 	box-sizing: border-box;
+	padding: 6px;
 	grid-gap: 6px;
 	grid-template:
-		"head head   head  head  head     head    head" 24px
-		".    attack hold  decay substain release .   " 28px
-		".    graph  graph graph graph    graph   .   " 1fr
-		".    .      .     .     .        .       .   " 0
-		/0    1fr    1fr   1fr   1fr      1fr     0;
-	color: var( --gsuiEnvelope-txt );
+		"attack hold  decay sustain release" 28px
+		"graph  graph graph graph   graph  " 1fr
+		/1fr    1fr   1fr   1fr      1fr;
 	font-family: var( --gsui-font );
-	background-color: var( --gsuiEnvelope-bg );
+	background-color: var( --gsui-item-bg );
 	--gsuiSlider-lineColor: var( --gsuiEnvelope-ctrls-color );
-	--gsuiSlider-lineBgColor: var( --gsuiEnvelope-ctrls-bg );
 }
 
 /* .......................................................................... */
@@ -52,50 +50,15 @@
 .gsuiEnvelope-decay {
 	grid-area: decay;
 }
-.gsuiEnvelope-substain {
-	grid-area: substain;
+.gsuiEnvelope-sustain {
+	grid-area: sustain;
 }
 .gsuiEnvelope-release {
 	grid-area: release;
 }
-.gsuiEnvelope .gsuiSlider-eventCatcher {
+gsui-envelope .gsuiSlider-eventCatcher {
 	top: -26px;
 	bottom: -6px;
-}
-
-/* .......................................................................... */
-.gsuiEnvelope-head {
-	grid-area: head;
-	display: flex;
-	align-items: center;
-	background-color: var( --gsuiEnvelope-head-bg );
-	user-select: none;
-}
-.gsuiEnvelope-title {
-	font-size: 14px;
-	opacity: .3;
-}
-.gsuiEnvelope-toggle {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	align-self: normal;
-	border: 0;
-	margin: 0;
-	outline: 0;
-	padding: 0;
-	width: 24px;
-	color: var( --gsuiEnvelope-toggle-off );
-	font-size: 8px;
-	cursor: pointer;
-	background: none;
-	transition: .2s color;
-}
-.gsuiEnvelope-enable .gsuiEnvelope-toggle {
-	color: var( --gsuiEnvelope-ctrls-color );
-}
-.gsuiEnvelope-toggleCheckbox {
-	display: none;
 }
 
 /* .......................................................................... */
@@ -106,14 +69,11 @@
 	border-radius: 4px;
 	background-color: var( --gsuiEnvelope-wave-bg );
 }
-.gsuiEnvelope-graph svg {
+gsui-envelope gsui-envelope-graph {
 	position: absolute;
-	/*top: 6px;*/
-	/*height: calc( 100% - 12px );*/
+	inset: 4px 0 0;
 	color: var( --gsuiEnvelope-wave-off );
-	stroke-width: 2px;
-	transition: color .2s;
 }
-.gsuiEnvelope-enable svg {
+gsui-envelope[ toggle ] gsui-envelope-graph {
 	color: var( --gsuiEnvelope-ctrls-color );
 }

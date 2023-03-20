@@ -24,7 +24,7 @@
 	display: flex;
 	height: 32px;
 	line-height: 32px;
-	font-size: 12px;
+	font-size: 11px;
 	user-select: none;
 }
 
@@ -40,7 +40,6 @@
 	color: inherit;
 	cursor: pointer;
 	background: none;
-	font-size: 14px;
 	transition: .1s;
 	transition-property: background-color, opacity;
 }
@@ -98,7 +97,6 @@
 	position: relative;
 	overflow: hidden;
 	min-height: 0;
-	max-height: 250px;
 	background-color: var( --gsuiPatterns-synth-patterns-bg );
 	transition: .3s min-height;
 }
@@ -116,8 +114,5 @@
 /* .......................................................................... */
 .gsuiPatterns-synth .gsuiPatterns-placeholder {
 	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
+	inset: 0;
 }

@@ -1,9 +1,6 @@
 "use strict";
 
 class gsuiDragshield extends HTMLElement {
-	connectedCallback() {
-		this.classList.add( "gsuiDragshield" );
-	}
 	show( cursor ) {
 		if ( cursor ) {
 			this.style.cursor = cursor;
@@ -16,4 +13,5 @@ class gsuiDragshield extends HTMLElement {
 	}
 }
 
+Object.freeze( gsuiDragshield );
 customElements.define( "gsui-dragshield", gsuiDragshield );

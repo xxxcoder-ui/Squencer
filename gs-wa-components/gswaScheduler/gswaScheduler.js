@@ -1,46 +1,48 @@
 "use strict";
 
 class gswaScheduler {
+	static #startedMaxId = 0;
+	data = {};
+	bpm = 60;
+	bps = 1;
+	loopA = null;
+	loopB = null;
+	looping = false;
+	loopDuration = 0;
+	isStreaming = true;
+	started = false;
+	duration = 0;
+	delayStopCallback = 0;
+	currentTime = DAWCoreUtils.$noop;
+	ondatastart = DAWCoreUtils.$noop;
+	ondatastop = DAWCoreUtils.$noop;
+	ondatapropchange = DAWCoreUtils.$noop;
+	onended = DAWCoreUtils.$noop;
+	#startDur = 0;
+	#startOff = 0;
+	#startWhen = 0;
+	#startFixedDur = 0;
+	#timeoutIdEnded = null;
+	#sortedData = [];
+	#dataScheduled = {};
+	#dataScheduledPerBlock = {};
+	#streamloopId = null;
+	#streamloopBind = this.#streamloop.bind( this );
+	#ctrl = DAWCoreUtils.$createUpdateDelete.bind( null, this.data,
+		this.#dataAddBlock.bind( this ),
+		this.#dataUpdateBlock.bind( this ),
+		this.#dataDeleteBlock.bind( this )
+	);
+
 	constructor() {
-		this.ondatastart =
-		this.ondatastop =
-		this.ondatapropchange =
-		this.onended =
-		this.currentTime = () => {};
-		this.bpm = 60;
-		this.bps = 1;
-		this.started = false;
-		this.duration =
-		this._startDur =
-		this._startOff =
-		this._startWhen =
-		this._startFixedDur = 0;
-		this._timeoutIdEnded = null;
-		this.data = {};
-		this._sortedData = [];
-		this._dataScheduled = {};
-		this._dataScheduledPerBlock = {};
-		this._lastBlockId = null;
-		this.loopA =
-		this.loopB = null;
-		this.looping = false;
-		this.loopDuration = 0;
-		this.isStreaming = true;
-		this._streamloop = this._streamloop.bind( this );
-		this._streamloopId = null;
-		this._crud = GSUtils.createUpdateDelete.bind( null, this.data,
-			this._dataAddBlock.bind( this ),
-			this._dataUpdateBlock.bind( this ),
-			this._dataDeleteBlock.bind( this ) );
 		Object.seal( this );
 	}
 
-	// BPM
 	// .........................................................................
-	setBPM( bpm ) {
+	$setBPM( bpm ) {
 		if ( this.bpm !== bpm ) {
-			const ratio = this.bpm / bpm,
-				currTime = this.getCurrentOffset() * ratio;
+			const ratio = this.bpm / bpm;
+			const currTime = this.#getCurrentOffset() * ratio;
 
 			this.bpm = bpm;
 			this.bps = bpm / 60;
@@ -49,64 +51,61 @@ class gswaScheduler {
 				this.loopA *= ratio;
 				this.loopB *= ratio;
 				this.loopDuration = this.loopB - this.loopA;
-				this.setCurrentOffset( this.loopB > currTime ? currTime : this.loopA );
+				this.#setCurrentOffset( this.loopB > currTime ? currTime : this.loopA );
 			} else {
-				this.setCurrentOffset( currTime );
+				this.#setCurrentOffset( currTime );
 			}
 		}
 	}
 
-	// Empty
 	// .........................................................................
-	empty() {
-		this._sortedData.forEach( kv => this._dataDeleteBlock( kv[ 0 ] ) );
-		this.clearLoop();
+	$empty() {
+		this.#sortedData.forEach( kv => this.#dataDeleteBlock( kv[ 0 ] ) );
+		this.$clearLoop();
 	}
 
-	// Loop
 	// .........................................................................
-	setLoopBeat( a, b ) {
-		return this.setLoop( a / this.bps, b / this.bps );
+	$setLoopBeat( a, b ) {
+		return this.#setLoop( a / this.bps, b / this.bps );
 	}
-	setLoop( a, b ) {
-		const off = this.started && this.getCurrentOffset();
+	#setLoop( a, b ) {
+		const off = this.started && this.#getCurrentOffset();
 
 		this.looping = true;
 		this.loopA = Math.min( a, b );
 		this.loopB = Math.max( a, b );
 		this.loopDuration = this.loopB - this.loopA;
 		if ( this.started ) {
-			this.setCurrentOffset( this.loopB > off ? off : this.loopA );
+			this.#setCurrentOffset( this.loopB > off ? off : this.loopA );
 		}
 	}
-	clearLoop() {
+	$clearLoop() {
 		if ( this.looping ) {
-			const off = this.getCurrentOffset();
+			const off = this.#getCurrentOffset();
 
 			this.looping = false;
-			this.setCurrentOffset( off );
+			this.#setCurrentOffset( off );
 		}
 	}
 
-	// set/getCurrentOffset
 	// .........................................................................
-	setCurrentOffsetBeat( off ) {
-		this.setCurrentOffset( off / this.bps );
+	$setCurrentOffsetBeat( off ) {
+		this.#setCurrentOffset( off / this.bps );
 	}
-	setCurrentOffset( off ) {
-		this._startOff = off;
-		this.started && this.start( 0, off );
+	#setCurrentOffset( off ) {
+		this.#startOff = off;
+		this.started && this.$start( 0, off );
 	}
-	getCurrentOffsetBeat() {
-		return this.getCurrentOffset() * this.bps;
+	$getCurrentOffsetBeat() {
+		return this.#getCurrentOffset() * this.bps;
 	}
-	getCurrentOffset() {
+	#getCurrentOffset() {
 		return this.started
-			? this.getFutureOffsetAt( this.currentTime() )
-			: this._startOff;
+			? this.#getFutureOffsetAt( this.currentTime() )
+			: this.#startOff;
 	}
-	getFutureOffsetAt( futureTime ) {
-		let t = this._startOff + futureTime - this._startWhen;
+	#getFutureOffsetAt( futureTime ) {
+		let t = this.#startOff + futureTime - this.#startWhen;
 
 		if ( this.looping && t > this.loopB - .001 ) {
 			t = this.loopA + ( t - this.loopA ) % this.loopDuration;
@@ -117,154 +116,155 @@ class gswaScheduler {
 		return t;
 	}
 
-	// Start / stop
 	// .........................................................................
-	enableStreaming( b = true ) {
+	$enableStreaming( b = true ) {
 		this.isStreaming = b;
 	}
-	startBeat( when, off = 0, dur ) {
-		return this.start( when, off / this.bps,
+	$startBeat( when, off = 0, dur ) {
+		return this.$start( when, off / this.bps,
 			Number.isFinite( dur )
 				? dur / this.bps
 				: dur );
 	}
-	start( when, off = 0, dur ) {
+	$start( when, off = 0, dur ) {
 		const currTime = this.currentTime();
 
 		if ( this.started ) {
-			this.stop();
+			this.$stop();
 		}
 		this.started = true;
-		this._startFixedDur = Number.isFinite( dur );
-		this._startWhen = Math.max( currTime, when );
-		this._startOff = off;
-		this._startDur = this._startFixedDur
+		this.#startFixedDur = Number.isFinite( dur );
+		this.#startWhen = Math.max( currTime, when );
+		this.#startOff = off;
+		this.#startDur = this.#startFixedDur
 			? dur
 			: this.duration - off;
 		if ( this.isStreaming && !this.looping ) {
-			this._timeoutIdEnded = setTimeout(
+			this.#timeoutIdEnded = setTimeout(
 				this.onended.bind( this ),
-				this._startDur * 1000 );
+				this.#startDur * 1000 );
 		}
 		this.isStreaming
-			? this._streamloopOn()
-			: this._fullStart();
+			? this.#streamloopOn()
+			: this.#fullStart();
 	}
-	stop() {
+	$stop() {
 		if ( this.started ) {
-			this._startOff = this.getCurrentOffset();
+			this.#startOff = this.#getCurrentOffset();
 			this.started = false;
-			clearTimeout( this._timeoutIdEnded );
-			this._streamloopOff();
-			Object.keys( this._dataScheduledPerBlock ).forEach( this._blockStop, this );
+			clearTimeout( this.#timeoutIdEnded );
+			this.#streamloopOff();
+			Object.keys( this.#dataScheduledPerBlock ).forEach( this.#blockStop, this );
 		}
 	}
-	_getOffsetEnd() {
-		return this.looping ? this.loopB : this._startOff + this._startDur;
+	#getOffsetEnd() {
+		return this.looping ? this.loopB : this.#startOff + this.#startDur;
 	}
-	_updateDuration( dur ) {
+	#updateDuration() {
+		const dur = Object.values( this.data ).reduce( gswaScheduler.#updateDurationReduce, 0 ) / this.bps;
+
 		if ( dur !== this.duration ) {
 			this.duration = dur;
-			if ( this.started && !this._startFixedDur ) {
-				this._startDur = dur;
+			if ( this.started && !this.#startFixedDur ) {
+				this.#startDur = dur;
 			}
-			if ( this.looping || !this._startFixedDur ) {
-				clearTimeout( this._timeoutIdEnded );
+			if ( this.looping || !this.#startFixedDur ) {
+				clearTimeout( this.#timeoutIdEnded );
 			}
 			if ( this.started && this.isStreaming && !this.looping ) {
-				this._timeoutIdEnded = setTimeout( this.onended.bind( this ),
-					( dur - this._startOff - this.currentTime() + this._startWhen ) * 1000 );
+				this.#timeoutIdEnded = setTimeout( this.onended.bind( this ),
+					( dur - this.#startOff - this.currentTime() + this.#startWhen ) * 1000 );
 			}
 		}
 	}
-
-	// Full start
-	// .........................................................................
-	_fullStart() {
-		const when = this._startWhen,
-			from = this._startOff,
-			to = from + this._startDur;
-
-		this._sortedData.forEach( kv => this._blockStart( when, from, to, to, ...kv ) );
+	static #updateDurationReduce( max, blc ) {
+		return Math.max( max, blc.when + blc.duration );
 	}
 
-	// Stream loop
 	// .........................................................................
-	_streamloopOn() {
-		if ( !this._streamloopId ) {
-			this._streamloopId = setInterval( this._streamloop, 100 );
-			this._streamloop();
+	#fullStart() {
+		const when = this.#startWhen;
+		const from = this.#startOff;
+		const to = from + this.#startDur;
+
+		this.#sortedData.forEach( kv => this.#blockStart( when, from, to, to, ...kv ) );
+	}
+
+	// .........................................................................
+	#streamloopOn() {
+		if ( !this.#streamloopId ) {
+			this.#streamloopId = setInterval( this.#streamloopBind, 100 );
+			this.#streamloop();
 		}
 	}
-	_streamloopOff() {
-		if ( this._streamloopId ) {
-			clearInterval( this._streamloopId );
-			this._streamloopId = null;
+	#streamloopOff() {
+		if ( this.#streamloopId ) {
+			clearInterval( this.#streamloopId );
+			this.#streamloopId = null;
 		}
 	}
-	_streamloop() {
+	#streamloop() {
 		const currTime = this.currentTime();
+		const delay = this.delayStopCallback / this.bps;
 		let stillSomethingToPlay;
 
-		Object.entries( this._dataScheduled ).forEach( ( [ id, obj ] ) => {
-			if ( obj.whenEnd < currTime ) {
-				delete this._dataScheduled[ id ];
-				delete this._dataScheduledPerBlock[ obj.blockId ].started[ id ];
+		Object.entries( this.#dataScheduled ).forEach( ( [ id, obj ] ) => {
+			if ( obj.whenEnd + delay < currTime ) {
+				delete this.#dataScheduled[ id ];
+				delete this.#dataScheduledPerBlock[ obj.blockId ].started[ id ];
 				this.ondatastop( id );
 			}
 		} );
-		this._sortedData.forEach( kv => {
-			if ( this._blockSchedule( kv[ 0 ] ) ) {
+		this.#sortedData.forEach( kv => {
+			if ( this.#blockSchedule( kv[ 0 ] ) ) {
 				stillSomethingToPlay = true;
 			}
 		} );
 		if ( !this.looping && !stillSomethingToPlay ) {
-			this._streamloopOff();
+			this.#streamloopOff();
 		}
 	}
 
-	// Block functions
 	// .........................................................................
-	_blockStop( id ) {
-		const dataScheduled = this._dataScheduled,
-			blcSchedule = this._dataScheduledPerBlock[ id ];
+	#blockStop( id ) {
+		const blcSchedule = this.#dataScheduledPerBlock[ id ];
 
 		Object.keys( blcSchedule.started ).forEach( id => {
 			this.ondatastop( id );
-			delete dataScheduled[ id ];
+			delete this.#dataScheduled[ id ];
 			delete blcSchedule.started[ id ];
 		} );
 		blcSchedule.scheduledUntil = 0;
 	}
-	_blockSchedule( id ) {
+	#blockSchedule( id ) {
 		if ( this.started ) {
-			const currTime = this.currentTime(),
-				currTimeEnd = currTime + 1,
-				blcSchedule = this._dataScheduledPerBlock[ id ];
+			const currTime = this.currentTime();
+			const currTimeEnd = currTime + 1;
+			const blcSchedule = this.#dataScheduledPerBlock[ id ];
 			let until = Math.max( currTime, blcSchedule.scheduledUntil || 0 );
 
 			if ( until < currTimeEnd ) {
-				const offEnd = this._getOffsetEnd(),
-					blc = this.data[ id ];
+				const offEnd = this.#getOffsetEnd();
+				const blc = this.data[ id ];
 
 				do {
-					const from = this.getFutureOffsetAt( until ),
-						to = Math.min( from + 1, offEnd );
+					const from = this.#getFutureOffsetAt( until );
+					const to = Math.min( from + 1, offEnd );
 
-					until += this._blockStart( until, from, to, offEnd, id, blc );
+					until += this.#blockStart( until, from, to, offEnd, id, blc );
 				} while ( this.looping && until < currTimeEnd );
 				blcSchedule.scheduledUntil = until;
 			}
-			return blcSchedule.scheduledUntil <= this._startWhen + this._startDur;
+			return blcSchedule.scheduledUntil <= this.#startWhen + this.#startDur;
 		}
 	}
-	_blockStart( when, from, to, offEnd, blockId, block ) {
+	#blockStart( when, from, to, offEnd, blockId, block ) {
 		if ( block.prev == null ) {
-			const bps = this.bps,
-				blcs = [];
-			let bWhn = block.when / bps,
-				bOff = block.offset / bps,
-				bDur = 0;
+			const bps = this.bps;
+			const blcs = [];
+			let bWhn = block.when / bps;
+			let bOff = block.offset / bps;
+			let bDur = 0;
 
 			for ( let id = blockId, blc = block; blc; ) {
 				blcs.push( [ id, blc ] );
@@ -273,7 +273,7 @@ class gswaScheduler {
 				blc = id != null ? this.data[ id ] : null;
 			}
 			if ( from <= bWhn + bDur && bWhn < to ) {
-				const startWhen = this._startWhen;
+				const startWhen = this.#startWhen;
 
 				if ( bWhn + bDur > offEnd ) {
 					bDur -= bWhn + bDur - offEnd;
@@ -290,10 +290,10 @@ class gswaScheduler {
 					bWhn = startWhen;
 				}
 				if ( bDur > .000001 ) {
-					const id = `${ ++gswaScheduler._startedMaxId.value }`;
+					const id = `${ ++gswaScheduler.#startedMaxId }`;
 
-					this._dataScheduledPerBlock[ blockId ].started[ id ] =
-					this._dataScheduled[ id ] = {
+					this.#dataScheduledPerBlock[ blockId ].started[ id ] =
+					this.#dataScheduled[ id ] = {
 						block,
 						blockId,
 						when: bWhn,
@@ -306,54 +306,26 @@ class gswaScheduler {
 		}
 		return to - from;
 	}
-	_isLastBlock( id ) {
-		if ( this._lastBlockId === id ) {
-			this._findLastBlock();
-		} else {
-			const blc = this.data[ id ],
-				whnEnd = ( blc.when + blc.duration ) / this.bps;
 
-			if ( whnEnd > this.duration ) {
-				this._lastBlockId = id;
-				this._updateDuration( whnEnd );
-			}
-		}
-	}
-	_findLastBlock() {
-		this._updateDuration( Object.entries( this.data )
-			.reduce( ( max, [ id, blc ] ) => {
-				const whnEnd = ( blc.when + blc.duration ) / this.bps;
-
-				if ( whnEnd > max ) {
-					this._lastBlockId = id;
-					return whnEnd;
-				}
-				return max;
-			}, 0 ) );
-	}
-
-	// Data
 	// .........................................................................
-	change( obj ) {
-		this._crud( obj );
-		this._sortedData = Object.entries( this.data ).sort( ( a, b ) => a[ 1 ].when - b[ 1 ].when );
+	$change( obj ) {
+		this.#ctrl( obj );
+		this.#sortedData = Object.entries( this.data ).sort( ( a, b ) => a[ 1 ].when - b[ 1 ].when );
 	}
-	_dataDeleteBlock( id ) {
+	#dataDeleteBlock( id ) {
 		if ( !( id in this.data ) ) {
 			console.warn( "gswaScheduler: data delete unknown id", id );
 		} else {
 			delete this.data[ id ];
 			if ( this.started ) {
-				this._blockStop( id );
+				this.#blockStop( id );
 			}
-			if ( this._lastBlockId === id ) {
-				this._findLastBlock();
-			}
-			delete this._dataScheduledPerBlock[ id ];
+			delete this.#dataScheduledPerBlock[ id ];
+			this.#updateDuration();
 		}
 	}
-	_dataAddBlock( id, obj ) {
-		this._dataScheduledPerBlock[ id ] = {
+	#dataAddBlock( id, obj ) {
+		this.#dataScheduledPerBlock[ id ] = {
 			started: {},
 			scheduledUntil: 0,
 		};
@@ -363,37 +335,22 @@ class gswaScheduler {
 			duration: 0,
 			...obj,
 		};
-		this._isLastBlock( id );
-		this._blockSchedule( id );
+		this.#updateDuration();
+		this.#blockSchedule( id );
 	}
-	_dataUpdateBlock( id, obj ) {
-		Object.entries( obj ).forEach( kv => this._dataUpdateBlockProp( id, ...kv ) );
-	}
-	_dataUpdateBlockProp( id, prop, val ) {
-		const propTime = prop === "when" || prop === "offset" || prop === "duration",
-			propLink = prop === "prev" || prop === "next";
+	#dataUpdateBlock( id, obj ) {
+		let blc = this.data[ id ];
+		let idToPlay = id;
 
-		if ( val === undefined ) {
-			delete this.data[ id ][ prop ];
-		} else {
-			this.data[ id ][ prop ] = val;
+		Object.assign( blc, obj );
+		this.#updateDuration();
+		while ( blc.prev ) {
+			idToPlay = blc.prev;
+			blc = this.data[ idToPlay ];
 		}
-		if ( propTime ) {
-			this._isLastBlock( id );
-		}
-		if ( this.started ) {
-			if ( propTime || propLink ) {
-				this._blockStop( id );
-				this._blockSchedule( id );
-			} else {
-				Object.keys( this._dataScheduledPerBlock[ id ].started ).forEach( startedId => {
-					this.ondatapropchange( startedId, prop, val );
-				} );
-			}
-		}
+		this.#blockStop( idToPlay );
+		this.#blockSchedule( idToPlay );
 	}
 }
-
-gswaScheduler._startedMaxId = Object.seal( { value: 0 } );
 
 Object.freeze( gswaScheduler );

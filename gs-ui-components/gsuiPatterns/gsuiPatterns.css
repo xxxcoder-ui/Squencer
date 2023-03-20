@@ -1,56 +1,89 @@
-.gsuiPatterns {
-	--gsuiPatterns-pattern-h: 64px;
-	--gsuiPatterns-pattern-head-h: 26px;
+gsui-patterns {
+	--gsuiPatterns-pattern-h: 54px;
+	--gsuiPatterns-pattern-head-h: 22px;
 	--gsuiPatterns-pattern-grip-w: 16px;
+	display: block;
 	height: 100%;
 }
 
 /* .......................................................................... */
+#gsuiPatterns-infoPopupContent label {
+	display: flex;
+	align-items: center;
+	height: 32px;
+	cursor: pointer;
+}
+#gsuiPatterns-infoPopupContent .gsuiIcon {
+	width: 20px;
+	margin-left: .4ch;
+	margin-right: .8ch;
+}
+#gsuiPatterns-infoPopupContent input[ name="bpm" ] {
+	margin-left: 8px;
+	width: 8ch;
+}
+#gsuiPatterns-infoPopupContent input[ name="name" ] {
+	width: 214px;
+}
+#gsuiPatterns-infoPopupContent span + span {
+	margin-left: 8px;
+}
+#gsuiPatterns-infoPopupContent input[ value="loop" ]:not( :checked ) ~ span:last-of-type,
+#gsuiPatterns-infoPopupContent input[ value="loop" ]:not( :checked ) ~ input[ name="bpm" ] {
+	opacity: .4;
+}
+
+/* .......................................................................... */
+.gsuiPatterns-panel:first-child {
+	min-height: 24px;
+}
 .gsuiPatterns-panel {
-	--gsuiPanels-bd: 0;
 	display: flex;
 	flex-direction: column;
+	min-height: 28px;
 }
 .gsuiPatterns-panelBuffers,
-.gsuiPatterns-panelDrums {
-	min-height: 29px;
-	max-height: 400px;
-	height: 140px;
+.gsuiPatterns-panelDrums,
+.gsuiPatterns-panelSlices {
+	height: 20%;
+}
+.gsuiPatterns-panelKeys {
+	height: 40%;
 }
 
 /* .......................................................................... */
 .gsuiPatterns-panel-menu {
 	display: flex;
 	align-items: center;
-	height: 28px;
-	min-height: 28px;
+	height: 24px;
+	min-height: 24px;
+	gap: 4px;
 	padding: 0 6px;
-	color: var( --gsuiPatterns-panel-menu-color );
+	font-size: 11px;
 	background-color: var( --gsuiPatterns-panel-menu-bg );
 	user-select: none;
 }
 .gsuiPatterns-panel-icon,
 .gsuiPatterns-panel-title {
-	font-size: 12px;
 	line-height: 1;
-	opacity: .5;
-}
-.gsuiPatterns-panel-icon {
-	margin-right: 4px;
+	opacity: .7;
 }
 .gsuiPatterns-panel-title {
-	font-size: 12px;
 	font-weight: bold;
 }
 .gsuiPatterns-panel-menu .gsuiPatterns-btnSolid {
-	margin-left: 8px;
+	width: 16px;
 }
 
 /* .......................................................................... */
-.gsuiPatterns-panel-list {
-	flex: 1;
-	overflow: auto;
+.gsuiPatterns-panel-list-wrap {
 	position: relative;
+	flex: 1;
+}
+.gsuiPatterns-panel-list {
+	overflow: auto;
+	position: absolute;
+	inset: 0;
 }
 .gsuiPatterns-panel-list:empty {
 	display: none;
@@ -59,7 +92,6 @@
 /* .......................................................................... */
 .gsuiPatterns-destArrow {
 	margin: 0 4px;
-	font-size: 12px;
 	opacity: .7;
 	pointer-events: none;
 }
@@ -68,17 +100,17 @@
 .gsuiPatterns-btnSolid {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
 	overflow: hidden;
-	height: 20px;
-	padding: 0 8px;
+	height: 16px;
+	padding: 0 6px;
 	border: 0;
 	outline: 0;
 	cursor: pointer;
 	border-radius: 3px;
 	line-height: 1;
-	font-size: 12px;
 	color: inherit;
-	font-family: inherit;
+	font: inherit;
 	font-weight: bold;
 	text-align: start;
 	background-color: var( --gsuiPatterns-panel-btnSolid-bg );
@@ -88,6 +120,7 @@
 .gsuiPatterns-btnSolid:hover {
 	filter: brightness( 1.1 );
 }
+.gsuiPatterns-btnSolid[ data-action="newSlices" ] { color: var( --gsuiPatterns-newSlicesBtn-color ); }
 .gsuiPatterns-btnSolid[ data-action="newSynth" ] { color: var( --gsuiPatterns-newSynthBtn-color ); }
 .gsuiPatterns-btnSolid[ data-action="newDrums" ] { color: var( --gsuiPatterns-newDrumsBtn-color ); }
 .gsuiPatterns-btnIcon {
@@ -105,12 +138,11 @@
 .gsuiPatterns-placeholder {
 	display: none;
 	overflow: hidden;
-	flex: 1;
+	height: 100%;
 	padding: 0 10px;
 	text-align: center;
 	align-items: center;
 	justify-content: center;
-	color: var( --gsuiPatterns-panel-menu-color );
 	font-size: 12px;
 	font-weight: bold;
 	opacity: 0;

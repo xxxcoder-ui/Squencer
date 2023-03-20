@@ -1,58 +1,68 @@
 "use strict";
 
-DAWCore.controllers.keys = class {
+DAWCoreControllers.keys = class {
+	on = null;
+	data = {};
+	#keysCrud = DAWCoreUtils.$createUpdateDelete.bind( null, this.data,
+		this.#addKey.bind( this ),
+		this.#updateKey.bind( this ),
+		this.#deleteKey.bind( this ) );
+	static #keyProps = Object.freeze( [
+		"key",
+		"when",
+		"duration",
+		"gain",
+		"gainLFOAmp",
+		"gainLFOSpeed",
+		"pan",
+		"lowpass",
+		"highpass",
+		"selected",
+		"prev",
+		"next",
+	] );
+
 	constructor( fns ) {
-		this.data = {};
-		this.on = GSUtils.mapCallbacks( [
+		this.on = DAWCoreUtils.$mapCallbacks( [
 			"addKey",
 			"removeKey",
 			"changeKeyProp",
 		], fns.dataCallbacks );
-		this._keysCrud = GSUtils.createUpdateDelete.bind( null, this.data,
-			this._addKey.bind( this ),
-			this._updateKey.bind( this ),
-			this._deleteKey.bind( this ) );
 		Object.freeze( this );
 	}
 
 	// .........................................................................
 	clear() {
-		Object.keys( this.data ).forEach( this._deleteKey, this );
+		Object.keys( this.data ).forEach( this.#deleteKey, this );
 	}
 	change( keysObj ) {
-		this._keysCrud( keysObj );
+		this.#keysCrud( keysObj );
 	}
 
 	// .........................................................................
-	_addKey( id, obj ) {
+	#addKey( id, obj ) {
 		const key = { ...obj };
 
 		this.data[ id ] = key;
 		this.on.addKey( id, key );
-		this._updateKey( id, key );
+		this.#updateKey( id, key );
 	}
-	_deleteKey( id ) {
+	#deleteKey( id ) {
 		delete this.data[ id ];
 		this.on.removeKey( id );
 	}
-	_updateKey( id, obj ) {
-		const dataKey = this.data[ id ],
-			cb = this.on.changeKeyProp.bind( null, id );
-
-		this._setProp( dataKey, cb, "key", obj.key );
-		this._setProp( dataKey, cb, "when", obj.when );
-		this._setProp( dataKey, cb, "duration", obj.duration );
-		this._setProp( dataKey, cb, "attack", obj.attack );
-		this._setProp( dataKey, cb, "release", obj.release );
-		this._setProp( dataKey, cb, "gain", obj.gain );
-		this._setProp( dataKey, cb, "pan", obj.pan );
-		this._setProp( dataKey, cb, "lowpass", obj.lowpass );
-		this._setProp( dataKey, cb, "highpass", obj.highpass );
-		this._setProp( dataKey, cb, "selected", obj.selected );
-		this._setProp( dataKey, cb, "prev", obj.prev );
-		this._setProp( dataKey, cb, "next", obj.next );
+	#updateKey( id, obj ) {
+		DAWCoreControllers.keys.#keyProps.forEach(
+			DAWCoreControllers.keys.#setProp.bind( null,
+				this.data[ id ],
+				this.on.changeKeyProp.bind( null, id ),
+				obj
+			)
+		);
 	}
-	_setProp( data, cb, prop, val ) {
+	static #setProp( data, cb, obj, prop ) {
+		const val = obj[ prop ];
+
 		if ( val !== undefined ) {
 			data[ prop ] = val;
 			cb( prop, val );
@@ -60,4 +70,4 @@ DAWCore.controllers.keys = class {
 	}
 };
 
-Object.freeze( DAWCore.controllers.keys );
+Object.freeze( DAWCoreControllers.keys );

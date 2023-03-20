@@ -1,23 +1,24 @@
-.gsuiDrumrows {
+gsui-drumrows {
 	display: flex;
 	flex-direction: column;
 	font-size: var( --gsuiTimewindow-lineH );
 }
-.gsuiDrumrows::-webkit-scrollbar {
+gsui-drumrows::-webkit-scrollbar {
 	display: none;
 }
 
 /* .......................................................................... */
 .gsuiDrumrows-drop {
-	display: none;
-	height: 1em;
-	order: 1;
+	display: flex;
 	align-items: center;
 	justify-content: center;
+	order: 1;
+	height: 1em;
 	pointer-events: none;
+	opacity: 0;
 }
-.gsuiDrumrows-dragover > .gsuiDrumrows-drop {
-	display: flex;
+gsui-drumrows.gsuiDrumrows-dragover > .gsuiDrumrows-drop {
+	opacity: 1;
 }
 .gsuiDrumrows-dropIn {
 	font-size: 24px;
@@ -35,17 +36,18 @@
 	--props-h: 1.5em;
 	position: relative;
 	box-sizing: border-box;
-	height: calc( 1em + 1px );
-	min-height: calc( 1em + 1px );
-	margin-top: -1px;
-	border: 0 solid var( --gsuiDrumrow-border );
-	border-width: 1px 0;
-	background-color: var( --gsuiDrumrow-bg );
-	transition: .2s height, .2s min-height, .1s filter;
+	height: 1em;
+	min-height: 1em;
+	border-top: 2px solid #ffffff11;
+	border-bottom: 2px solid #0000003b;
+	background-color: var( --gsui-item-bg );
+	transition:
+		.2s height,
+		.2s min-height;
 }
 .gsuiDrumrow-mute {
-	--gsuiDrumrow-toggle-bg: var( --gsuiDrumrow-toggleOff-bg );
-	filter: brightness( .8 ) contrast( .8 );
+	border-color: transparent;
+	background-color: var( --gsui-item-bg-disabled );
 }
 .gsuiDrumrow-open {
 	height: calc( 1em + 1px + var( --props-h ) );
@@ -56,12 +58,13 @@
 .gsuiDrumrow-main {
 	position: absolute;
 	box-sizing: border-box;
-	top: 0;
-	left: var( --grip-w );
-	right: 0;
+	inset: 0 1px auto var( --grip-w );
 	height: 1em;
 	min-height: 1em;
-	border-bottom: 1px dashed var( --gsuiDrumrow-border );
+}
+.gsuiDrumrow.gsuiDrumrows-dragover .gsuiDrumrow-main {
+	opacity: 0;
+	pointer-events: none;
 }
 .gsuiDrumrow-props {
 	position: absolute;
@@ -69,10 +72,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	top: 1em;
-	left: var( --grip-w );
-	right: 0;
-	bottom: 0;
+	inset: 1em 0 0 var( --grip-w );
+	background-color: var( --gsui-item-more-bg );
 }
 .gsuiDrumrow-prop {
 	outline: 0;
@@ -110,7 +111,7 @@
 	background-color: var( --gsuiDrumrow-prop-bgHover );
 }
 .gsuiDrumrow-propRadio:checked + .gsuiDrumrow-propSpan {
-	color: var( --gsuiDrumrow-bg );
+	color: var( --gsui-item-bg );
 	background-color: var( --color );
 }
 
@@ -118,9 +119,7 @@
 .gsuiDrumrow-grip {
 	position: absolute;
 	width: var( --grip-w );
-	top: 0;
-	left: 0;
-	bottom: 0;
+	inset: 0 auto 0 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -132,26 +131,15 @@
 	pointer-events: none;
 	opacity: .4;
 }
-.gsuiDrumrow-btnToggle {
+gsui-drumrows gsui-toggle {
 	position: absolute;
-	left: 0;
+	inset: 0 auto auto 0;
 	width: var( --toggle-w );
 	height: var( --name-h );
-	top: 0;
-	border: 0;
-	outline: 0;
-	padding: 0;
-	font-size: 8px;
-	color: var( --gsuiDrumrow-toggle-bg );
-	cursor: pointer;
-	background: none;
-	transition: .1s opacity;
 }
 .gsuiDrumrow-name {
 	position: absolute;
-	top: 0;
-	left: var( --toggle-w );
-	right: calc( var( --delete-w ) + var( --propsExpand-w ) + 6px );
+	inset: 0 calc( var( --delete-w ) + var( --propsExpand-w ) + 6px ) auto var( --toggle-w );
 	height: var( --name-h );
 	line-height: var( --name-h );
 	overflow: hidden;
@@ -171,15 +159,12 @@
 .gsuiDrumrow-waveWrap {
 	position: absolute;
 	overflow: hidden;
-	top: var( --name-h );
-	left: 0;
-	right: calc( var( --slider-w ) * 3 + 8px );
-	bottom: 0;
+	inset: var( --name-h ) calc( var( --slider-w ) * 3 + 8px ) 4px 0;
 	pointer-events: none;
 }
 .gsuiDrumrow-wave {
 	position: absolute;
-	top: 0;
+	inset: 0 auto auto 0;
 	width: 100%;
 	height: 100%;
 	fill: currentColor;
@@ -187,8 +172,7 @@
 }
 .gsuiDrumrow-startCursor {
 	position: absolute;
-	top: 0;
-	left: 0;
+	inset: 0 auto auto 0;
 	width: 100%;
 	height: 100%;
 	border-right: 2px solid;
@@ -201,6 +185,7 @@
 .gsuiDrumrow-mute .gsuiDrumrow-startCursor {
 	visibility: hidden;
 }
+
 @keyframes gsuiDrumrow-startCursor-anim {
 	from { left: -100%; }
 	to { left: 100%; }
@@ -210,17 +195,12 @@
 .gsuiDrumrow-detune,
 .gsuiDrumrow-pan,
 .gsuiDrumrow-gain {
-	--gsuiSlider-lineBgColor: var( --gsuiDrumrow-slider-bg );
 	position: absolute;
-	top: var( --name-h );
+	inset: var( --name-h ) auto 4px;
 	width: var( --slider-w );
-	bottom: 2px;
 }
 .gsuiDrumrow .gsuiSlider-eventCatcher {
-	top: -2px;
-	left: -2px;
-	right: -2px;
-	bottom: -2px;
+	inset: -2px;
 }
 .gsuiDrumrow-detune {
 	--gsuiSlider-lineColor: var( --gsuiDrumrow-detune );
@@ -236,17 +216,12 @@
 }
 
 /* .......................................................................... */
-.gsuiDrumrow.gsuiDrumrows-dragover .gsuiDrumrow-btnToggle,
-.gsuiDrumrow.gsuiDrumrows-dragover .gsuiDrumrow-name,
-.gsuiDrumrow.gsuiDrumrows-dragover .gsuiDrumrow-waveWrap {
-	opacity: 0;
-}
 .gsuiDrumrow .gsuiDrumrows-drop {
 	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
+	inset: 0;
+}
+.gsuiDrumrow.gsuiDrumrows-dragover .gsuiDrumrows-drop {
+	opacity: 1;
 }
 .gsuiDrumrow-btnProps,
 .gsuiDrumrow-btnDelete {

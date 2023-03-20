@@ -1,8 +1,8 @@
 "use strict";
 
-DAWCore.actions.reorderOscillator = ( synthId, oscillators, get ) => {
+DAWCoreActions.set( "reorderOscillator", ( daw, synthId, oscillators ) => {
 	return [
 		{ synths: { [ synthId ]: { oscillators } } },
-		[ "synth", "reorderOscillator", get.synth( synthId ).name ],
+		[ "synth", "reorderOscillator", daw.$getSynth( synthId ).name ],
 	];
-};
+} );

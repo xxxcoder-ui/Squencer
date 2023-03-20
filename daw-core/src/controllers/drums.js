@@ -1,54 +1,56 @@
 "use strict";
 
-DAWCore.controllers.drums = class {
+DAWCoreControllers.drums = class {
+	on = null;
+	data = {};
+	#drumsCrud = DAWCoreUtils.$createUpdateDelete.bind( null, this.data,
+		this.#addDrum.bind( this ),
+		this.#changeDrum.bind( this ),
+		this.#deleteDrum.bind( this ) );
+
 	constructor( fns ) {
-		this.data = {};
-		this.on = GSUtils.mapCallbacks( [
+		this.on = DAWCoreUtils.$mapCallbacks( [
 			"addDrum",
 			"removeDrum",
 			"changeDrum",
 			"addDrumcut",
 			"removeDrumcut",
 		], fns.dataCallbacks );
-		this._drumsCrud = GSUtils.createUpdateDelete.bind( null, this.data,
-			this._addDrum.bind( this ),
-			this._changeDrum.bind( this ),
-			this._deleteDrum.bind( this ) );
 		Object.freeze( this );
 	}
 	change( obj ) {
-		this._drumsCrud( obj );
+		this.#drumsCrud( obj );
 	}
 	clear() {
-		Object.keys( this.data ).forEach( this._deleteDrum, this );
+		Object.keys( this.data ).forEach( this.#deleteDrum, this );
 	}
 
 	// .........................................................................
-	_addDrum( id, obj ) {
+	#addDrum( id, obj ) {
 		const cpy = { ...obj };
 
 		this.data[ id ] = cpy;
 		if ( "gain" in cpy ) {
 			this.on.addDrum( id, cpy );
-			this._changeDrum( id, cpy );
+			this.#changeDrum( id, cpy );
 		} else {
 			this.on.addDrumcut( id, cpy );
 		}
 	}
-	_deleteDrum( id ) {
+	#deleteDrum( id ) {
 		const fn = "gain" in this.data[ id ]
-				? this.on.removeDrum
-				: this.on.removeDrumcut;
+			? this.on.removeDrum
+			: this.on.removeDrumcut;
 
 		delete this.data[ id ];
 		fn( id );
 	}
-	_changeDrum( id, obj ) {
-		this._changeDrumProp( id, "detune", obj.detune );
-		this._changeDrumProp( id, "gain", obj.gain );
-		this._changeDrumProp( id, "pan", obj.pan );
+	#changeDrum( id, obj ) {
+		this.#changeDrumProp( id, "detune", obj.detune );
+		this.#changeDrumProp( id, "gain", obj.gain );
+		this.#changeDrumProp( id, "pan", obj.pan );
 	}
-	_changeDrumProp( id, prop, val ) {
+	#changeDrumProp( id, prop, val ) {
 		if ( val !== undefined ) {
 			this.data[ id ][ prop ] = val;
 			this.on.changeDrum( id, prop, val );
@@ -56,4 +58,4 @@ DAWCore.controllers.drums = class {
 	}
 };
 
-Object.freeze( DAWCore.controllers.drums );
+Object.freeze( DAWCoreControllers.drums );

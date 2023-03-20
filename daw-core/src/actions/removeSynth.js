@@ -1,12 +1,12 @@
 "use strict";
 
-DAWCore.actions.removeSynth = ( synthId, get ) => {
-	const keys = {},
-		blocks = {},
-		patterns = {},
-		cmpBlocks = Object.entries( get.blocks() ),
-		cmpPatterns = Object.entries( get.patterns() ),
-		obj = { synths: { [ synthId ]: undefined } };
+DAWCoreActions.set( "removeSynth", ( daw, synthId ) => {
+	const keys = {};
+	const blocks = {};
+	const patterns = {};
+	const cmpBlocks = Object.entries( daw.$getBlocks() );
+	const cmpPatterns = Object.entries( daw.$getPatterns() );
+	const obj = { synths: { [ synthId ]: undefined } };
 
 	cmpPatterns.forEach( ( [ patId, pat ] ) => {
 		if ( pat.synth === synthId ) {
@@ -19,11 +19,11 @@ DAWCore.actions.removeSynth = ( synthId, get ) => {
 			} );
 		}
 	} );
-	GSUtils.addIfNotEmpty( obj, "keys", keys );
-	GSUtils.addIfNotEmpty( obj, "patterns", patterns );
-	GSUtils.addIfNotEmpty( obj, "blocks", blocks );
-	if ( synthId === get.synthOpened() ) {
-		if ( !Object.keys( get.synths() ).some( k => {
+	DAWCoreUtils.$addIfNotEmpty( obj, "keys", keys );
+	DAWCoreUtils.$addIfNotEmpty( obj, "patterns", patterns );
+	DAWCoreUtils.$addIfNotEmpty( obj, "blocks", blocks );
+	if ( synthId === daw.$getOpened( "synth" ) ) {
+		if ( !Object.keys( daw.$getSynths() ).some( k => {
 			if ( k !== synthId ) {
 				obj.synthOpened = k;
 				if ( !cmpPatterns.some( ( [ patId, pat ] ) => {
@@ -42,6 +42,6 @@ DAWCore.actions.removeSynth = ( synthId, get ) => {
 	}
 	return [
 		obj,
-		[ "synths", "removeSynth", get.synth( synthId ).name ],
+		[ "synths", "removeSynth", daw.$getSynth( synthId ).name ],
 	];
-};
+} );

@@ -1,14 +1,14 @@
 "use strict";
 
-DAWCore.actions.openSynth = ( id, get ) => {
-	if ( id !== get.synthOpened() ) {
-		const pat = Object.entries( get.patterns() ).find( kv => kv[ 1 ].synth === id ),
-			patId = pat ? pat[ 0 ] : null,
-			obj = { synthOpened: id };
+DAWCoreActions.set( "openSynth", ( daw, id ) => {
+	if ( id !== daw.$getOpened( "synth" ) ) {
+		const pat = Object.entries( daw.$getPatterns() ).find( kv => kv[ 1 ].synth === id );
+		const patId = pat ? pat[ 0 ] : null;
+		const obj = { synthOpened: id };
 
-		if ( patId !== get.patternKeysOpened() ) {
+		if ( patId !== daw.$getOpened( "keys" ) ) {
 			obj.patternKeysOpened = patId;
 		}
 		return obj;
 	}
-};
+} );

@@ -1,25 +1,18 @@
-.gsuiTrack {
+gsui-track {
+	box-sizing: border-box;
 	display: flex;
-	height: var( --gsuiTimewindow-lineH );
-	background-color: hsl(
-		var( --gsuiTrack-hsl-h ),
-		var( --gsuiTrack-hsl-s ),
-		calc( var( --gsuiTrack-hsl-l ) + var( --rel-l, 0% ) ) );
+	height: 100%;
+	border-top: 2px solid #ffffff11;
+	border-bottom: 2px solid #0000003b;
+	background-color: var( --gsui-item-bg );
 }
-.gsuiTrack,
-.gsuiTrack-row,
-.gsuiTrack-toggle::before {
+gsui-track,
+.gsuiTrack-row {
 	transition: .2s background-color;
 }
-.gsuiTrack:nth-child( even ) {
-	--rel-l: -1.7%;
-}
-.gsuiTrack.gsui-mute {
-	--rel-l: -5%;
-	--gsuiTrack-toggle-bg: var( --gsuiTrack-toggleOff-bg );
-}
-.gsuiTrack.gsui-mute:nth-child( even ) {
-	--rel-l: -5.5%;
+gsui-track[ mute ] {
+	border: 0;
+	background-color: var( --gsui-item-bg-disabled );
 }
 
 /* .......................................................................... */
@@ -27,38 +20,30 @@
 	position: relative;
 	z-index: 0;
 	height: var( --gsuiTimewindow-lineH );
-	background-color: rgba( 0, 0, 0, var( --rel-a, 0 ) );
 }
-.gsuiTrack-row:nth-child( even ) {
-	--rel-a: .06;
+.gsuiTrack-row::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-top: 2px solid #ffffff0b;
+	border-bottom: 2px solid #00000026;
 }
 .gsuiTrack-row.gsui-mute {
-	--rel-a: .25;
-}
-.gsuiTrack-row.gsui-mute:nth-child( even ) {
-	--rel-a: .29;
+	border: 0;
+	background-color: #00000012;
 }
 .gsuiTrack-row > div {
 	position: absolute;
-	top: 0;
-	bottom: 0;
-	width: 100%;
+	inset: 0;
 	font-size: var( --gsuiTimewindow-pxperbeat );
+}
+.gsuiTrack-row.gsui-mute > div {
+	top: 0;
 }
 
 /* .......................................................................... */
-.gsuiTrack-toggle {
-	cursor: pointer;
-	display: flex;
-	border: 0;
-	outline: 0;
-	padding: 0;
+gsui-track gsui-toggle {
 	min-width: 24px;
-	align-items: center;
-	justify-content: center;
-	color: var( --gsuiTrack-toggle-bg );
-	font-size: 8px;
-	background: none;
 }
 .gsuiTrack-nameWrap {
 	position: relative;
@@ -67,9 +52,8 @@
 .gsuiTrack-name {
 	box-sizing: border-box;
 	position: absolute;
-	top: 0;
+	inset: 0;
 	width: 100%;
-	height: 100%;
 	border: 0;
 	outline: 0;
 	padding-right: 10px;
@@ -77,12 +61,12 @@
 	font-weight: bold;
 	font-family: inherit;
 	text-overflow: ellipsis;
-	color: var( --gsuiTrack-color );
+	color: inherit;
 	cursor: default;
 	background: none;
 	user-select: none;
 }
-.gsui-mute .gsuiTrack-name {
+gsui-track[ mute ] .gsuiTrack-name {
 	opacity: .5;
 }
 .gsuiTrack-name:focus {

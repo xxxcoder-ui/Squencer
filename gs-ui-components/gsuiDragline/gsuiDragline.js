@@ -1,62 +1,57 @@
 "use strict";
 
 class gsuiDragline {
-	constructor() {
-		const root = GSUI.getTemplate( "gsui-dragline" ),
-			svg = root.firstElementChild.firstElementChild;
+	onchange = GSUI.$noop;
+	rootElement = GSUI.$getTemplate( "gsui-dragline" );
+	getDropAreas = null;
+	#linkedTo = null;
+	#dropAreas = null;
+	#evKeydown = null;
+	#evMouseup = null;
+	#evMousemove = null;
+	#elements = GSUI.$findElements( this.rootElement, {
+		main: ".gsuiDragline-main",
+		svg: ".gsuiDragline-line",
+		polyline: ".gsuiDragline-line polyline",
+		to: ".gsuiDragline-to",
+	} );
 
-		this.onchange = () => {};
-		this.rootElement = root;
-		this.getDropAreas =
-		this._linkedTo =
-		this._dropAreas =
-		this._evKeydown =
-		this._evMouseup =
-		this._evMousemove = null;
-		this._dragging = false;
-		this._lineSize = 0;
-		this._svg = svg;
-		this._to = root.firstElementChild.lastElementChild;
-		this._main = root.firstElementChild;
-		this._polyline = svg.firstElementChild;
+	constructor() {
 		Object.seal( this );
 
-		this._to.onmousedown = this._mousedownTo.bind( this );
+		this.#elements.to.onmousedown = this.#onmousedownTo.bind( this );
 	}
 
+	// .........................................................................
 	linkTo( el ) {
 		const elem = el || null;
 
-		if ( elem !== this._linkedTo ) {
-			this._linkedTo = elem;
+		if ( elem !== this.#linkedTo ) {
+			this.#linkedTo = elem;
 			this.rootElement.classList.toggle( "gsuiDragline-linked", !!elem );
-			elem ? this.redraw() : this._unlink();
+			elem ? this.redraw() : this.#unlink();
 		}
 	}
 	redraw() {
-		if ( this._linkedTo ) {
-			const bcr = this._linkedTo.getBoundingClientRect();
+		if ( this.#linkedTo ) {
+			const bcr = this.#linkedTo.getBoundingClientRect();
 
-			this._updateLineSize();
-			this._render( bcr.left, bcr.top );
+			this.#render( bcr.left, bcr.top );
 		}
 	}
 
-	// private:
-	_updateLineSize() {
-		this._lineSize = parseFloat( getComputedStyle( this._polyline ).strokeWidth ) || 0;
-	}
-	_render( x, y ) {
-		const clMain = this._main.classList,
-			stMain = this._main.style,
-			stSvg = this._svg.style,
-			bcr = this.rootElement.getBoundingClientRect(),
-			w = x - bcr.left,
-			h = y - bcr.top,
-			wabs = Math.abs( w ),
-			habs = Math.abs( h ),
-			whmax = Math.max( wabs, habs ),
-			whmax2 = whmax * 2;
+	// .........................................................................
+	#render( x, y ) {
+		const clMain = this.#elements.main.classList;
+		const stMain = this.#elements.main.style;
+		const stSvg = this.#elements.svg.style;
+		const bcr = this.rootElement.getBoundingClientRect();
+		const w = x - bcr.left;
+		const h = y - bcr.top;
+		const wabs = Math.abs( w );
+		const habs = Math.abs( h );
+		const whmax = Math.max( wabs, habs );
+		const whmax2 = whmax * 2;
 
 		clMain.toggle( "gsuiDragline-down", h > 0 );
 		clMain.toggle( "gsuiDragline-right", w > 0 );
@@ -67,12 +62,12 @@ class gsuiDragline {
 		stSvg.width =
 		stSvg.height = `${ whmax2 }px`;
 		stSvg.margin = `${ -whmax }px`;
-		this._svg.setAttribute( "viewBox", `0 0 ${ whmax2 } ${ whmax2 }` );
-		this._polyline.setAttribute( "points", `${ whmax },${ whmax } ${ whmax + w },${ whmax + h }` );
+		GSUI.$setAttribute( this.#elements.svg, "viewBox", `0 0 ${ whmax2 } ${ whmax2 }` );
+		GSUI.$setAttribute( this.#elements.polyline, "points", `${ whmax },${ whmax } ${ whmax + w },${ whmax + h }` );
 	}
-	_unlink() {
-		const stMain = this._main.style,
-			stSvg = this._svg.style;
+	#unlink() {
+		const stMain = this.#elements.main.style;
+		const stSvg = this.#elements.svg.style;
 
 		stMain.top =
 		stMain.left =
@@ -82,70 +77,67 @@ class gsuiDragline {
 		stSvg.height =
 		stSvg.margin = "0px";
 	}
-	_cancelDrag() {
-		this._resetDrag();
-		if ( this._linkedTo ) {
+	#cancelDrag() {
+		this.#resetDrag();
+		if ( this.#linkedTo ) {
 			this.redraw();
 		} else {
-			this._unlink();
+			this.#unlink();
 		}
 	}
-	_resetDrag() {
+	#resetDrag() {
 		this.rootElement.classList.remove( "gsuiDragline-dragging" );
-		this._dropAreas.forEach( el => {
+		this.#dropAreas.forEach( el => {
 			el.classList.remove( "gsuiDragline-dropActive" );
 			delete el.onmouseup;
 		} );
-		this._dragging = false;
-		document.removeEventListener( "mousemove", this._evMousemove );
-		document.removeEventListener( "mouseup", this._evMouseup );
-		document.removeEventListener( "keydown", this._evKeydown );
+		document.removeEventListener( "mousemove", this.#evMousemove );
+		document.removeEventListener( "mouseup", this.#evMouseup );
+		document.removeEventListener( "keydown", this.#evKeydown );
 	}
 
-	// events:
-	_mousedownTo( e ) {
+	// .........................................................................
+	#onmousedownTo( e ) {
 		if ( e.button === 0 ) {
-			this._dragging = true;
-			this._dropAreas = this.getDropAreas();
-			this._dropAreas.forEach( el => {
-				el.onmouseup = this._mouseupDrop.bind( this );
+			this.#dropAreas = this.getDropAreas();
+			this.#dropAreas.forEach( el => {
+				el.onmouseup = this.#onmouseupDrop.bind( this );
 				el.classList.add( "gsuiDragline-dropActive" );
 			} );
 			this.rootElement.classList.add( "gsuiDragline-dragging" );
-			this._evMousemove = this._mousemove.bind( this );
-			this._evMouseup = this._mouseup.bind( this );
-			this._evKeydown = this._keydown.bind( this );
-			document.addEventListener( "mousemove", this._evMousemove );
-			document.addEventListener( "mouseup", this._evMouseup );
-			document.addEventListener( "keydown", this._evKeydown );
-			this._updateLineSize();
-			this._mousemove( e );
+			this.#evMousemove = this.#onmousemove.bind( this );
+			this.#evMouseup = this.#onmouseup.bind( this );
+			this.#evKeydown = this.#onkeydown.bind( this );
+			document.addEventListener( "mousemove", this.#evMousemove );
+			document.addEventListener( "mouseup", this.#evMouseup );
+			document.addEventListener( "keydown", this.#evKeydown );
+			this.#onmousemove( e );
 		}
 	}
-	_keydown( e ) {
+	#onkeydown( e ) {
 		if ( e.key === "Escape" ) {
-			this._cancelDrag();
+			this.#cancelDrag();
 		}
 	}
-	_mouseupDrop( e ) {
+	#onmouseupDrop( e ) {
 		const tar = e.currentTarget;
 
-		if ( tar !== this._linkedTo ) {
-			this.onchange( tar, this._linkedTo );
-			this._linkedTo = tar;
+		if ( tar !== this.#linkedTo ) {
+			this.onchange( tar, this.#linkedTo );
+			this.#linkedTo = tar;
 		}
-		this._resetDrag();
+		this.#resetDrag();
 		this.redraw();
 		return false;
 	}
-	_mouseup() {
-		if ( this._linkedTo ) {
-			this.onchange( null, this._linkedTo );
-			this._linkedTo = null;
+	#onmouseup() {
+		if ( this.#linkedTo ) {
+			this.onchange( null, this.#linkedTo );
+			this.#linkedTo = null;
 		}
-		this._cancelDrag();
+		this.#cancelDrag();
 	}
-	_mousemove( e ) {
-		this._render( e.pageX, e.pageY );
+	#onmousemove( e ) {
+		this.#render( e.pageX, e.pageY );
 	}
 }

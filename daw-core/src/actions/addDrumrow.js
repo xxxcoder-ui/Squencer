@@ -1,17 +1,17 @@
 "use strict";
 
-DAWCore.actions.addDrumrow = ( pattern, get ) => {
-	const pat = get.pattern( pattern );
+DAWCoreActions.set( "addDrumrow", ( daw, pattern ) => {
+	const pat = daw.$getPattern( pattern );
 
 	if ( pat.type === "buffer" ) {
-		const drumrows = get.drumrows(),
-			id = DAWCore.common.getNextIdOf( drumrows ),
-			order = DAWCore.common.getNextOrderOf( drumrows ),
-			rowObj = DAWCore.json.drumrow( { pattern, order } );
+		const drumrows = daw.$getDrumrows();
+		const id = DAWCoreActionsCommon.getNextIdOf( drumrows );
+		const order = DAWCoreActionsCommon.getNextOrderOf( drumrows );
+		const rowObj = DAWCoreJSON.drumrow( { pattern, order } );
 
 		return [
 			{ drumrows: { [ id ]: rowObj } },
 			[ "drumrows", "addDrumrow", pat.name ],
 		];
 	}
-};
+} );

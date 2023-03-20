@@ -1,44 +1,46 @@
 "use strict";
 
-DAWCore.controllers.tracks = class {
+DAWCoreControllers.tracks = class {
+	on = null;
+	data = {};
+	#tracksCrud = DAWCoreUtils.$createUpdateDelete.bind( null, this.data,
+		this.#addTrack.bind( this ),
+		this.#changeTrack.bind( this ),
+		this.#deleteTrack.bind( this ) );
+
 	constructor( fns ) {
-		this.data = {};
-		this.on = GSUtils.mapCallbacks( [
+		this.on = DAWCoreUtils.$mapCallbacks( [
 			"addTrack",
 			"removeTrack",
 			"toggleTrack",
 			"renameTrack",
 			"reorderTrack",
 		], fns.dataCallbacks );
-		this._tracksCrud = GSUtils.createUpdateDelete.bind( null, this.data,
-			this._addTrack.bind( this ),
-			this._changeTrack.bind( this ),
-			this._deleteTrack.bind( this ) );
 		Object.freeze( this );
 	}
 	change( obj ) {
-		this._tracksCrud( obj.tracks );
+		this.#tracksCrud( obj.tracks );
 	}
 	clear() {
-		Object.keys( this.data ).forEach( this._deleteTrack, this );
+		Object.keys( this.data ).forEach( this.#deleteTrack, this );
 	}
 
 	// .........................................................................
-	_addTrack( id, obj ) {
+	#addTrack( id, obj ) {
 		this.data[ id ] = { ...obj };
 		this.on.addTrack( id );
-		this._changeTrack( id, obj );
+		this.#changeTrack( id, obj );
 	}
-	_deleteTrack( id ) {
+	#deleteTrack( id ) {
 		delete this.data[ id ];
 		this.on.removeTrack( id );
 	}
-	_changeTrack( id, obj ) {
-		this._changeTrackProp( id, "toggle", obj.toggle, this.on.toggleTrack );
-		this._changeTrackProp( id, "name", obj.name, this.on.renameTrack );
-		this._changeTrackProp( id, "order", obj.order, this.on.reorderTrack );
+	#changeTrack( id, obj ) {
+		this.#changeTrackProp( id, "toggle", obj.toggle, this.on.toggleTrack );
+		this.#changeTrackProp( id, "name", obj.name, this.on.renameTrack );
+		this.#changeTrackProp( id, "order", obj.order, this.on.reorderTrack );
 	}
-	_changeTrackProp( id, prop, val, fn ) {
+	#changeTrackProp( id, prop, val, fn ) {
 		if ( val !== undefined ) {
 			this.data[ id ][ prop ] = val;
 			fn( id, val );
@@ -46,4 +48,4 @@ DAWCore.controllers.tracks = class {
 	}
 };
 
-Object.freeze( DAWCore.controllers.drums );
+Object.freeze( DAWCoreControllers.drums );

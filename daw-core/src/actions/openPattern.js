@@ -1,23 +1,14 @@
 "use strict";
 
-DAWCore.actions.openPattern = ( patId, get ) => {
-	const pat = get.pattern( patId );
+DAWCoreActions.set( "openPattern", ( daw, id ) => {
+	const pat = daw.$getPattern( id );
 
-	switch ( pat.type ) {
-		case "drums":
-			if ( patId !== get.patternDrumsOpened() ) {
-				return { patternDrumsOpened: patId };
-			}
-			break;
-		case "keys":
-			if ( patId !== get.patternKeysOpened() ) {
-				const obj = { patternKeysOpened: patId };
+	if ( id !== daw.$getOpened( pat.type ) && pat.type !== "buffer" ) {
+		const obj = { [ DAWCoreActionsCommon.patternOpenedByType[ pat.type ] ]: id };
 
-				if ( pat.synth !== get.synthOpened() ) {
-					obj.synthOpened = pat.synth;
-				}
-				return obj;
-			}
-			break;
+		if ( pat.type === "keys" && pat.synth !== daw.$getOpened( "synth" ) ) {
+			obj.synthOpened = pat.synth;
+		}
+		return obj;
 	}
-};
+} );

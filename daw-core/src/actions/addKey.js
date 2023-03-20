@@ -1,12 +1,12 @@
 "use strict";
 
-DAWCore.actions.addKey = ( patId, key, when, duration, get ) => {
-	const pat = get.pattern( patId ),
-		keys = get.keys( pat.keys ),
-		id = DAWCore.common.getNextIdOf( keys ),
-		keysObj = { [ id ]: DAWCore.json.key( { key, when, duration } ) },
-		patDur = DAWCore.common.calcNewKeysDuration( pat.keys, keysObj, get ),
-		obj = { keys: { [ pat.keys ]: keysObj } };
+DAWCoreActions.set( "addKey", ( daw, patId, key, when, duration ) => {
+	const pat = daw.$getPattern( patId );
+	const keys = daw.$getKeys( pat.keys );
+	const id = DAWCoreActionsCommon.getNextIdOf( keys );
+	const keysObj = { [ id ]: DAWCoreJSON.key( { key, when, duration } ) };
+	const patDur = DAWCoreActionsCommon.calcNewKeysDuration( daw, pat.keys, keysObj );
+	const obj = { keys: { [ pat.keys ]: keysObj } };
 
 	Object.entries( keys ).reduce( ( obj, [ id, key ] ) => {
 		if ( key.selected && !( id in obj ) ) {
@@ -14,9 +14,9 @@ DAWCore.actions.addKey = ( patId, key, when, duration, get ) => {
 		}
 		return obj;
 	}, keysObj );
-	DAWCore.common.updatePatternDuration( obj, patId, patDur, get );
+	DAWCoreActionsCommon.updatePatternDuration( daw, obj, patId, patDur );
 	return [
 		obj,
 		[ "keys", "addKey", pat.name ],
 	];
-};
+} );

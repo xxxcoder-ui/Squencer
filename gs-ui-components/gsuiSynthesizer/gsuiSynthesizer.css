@@ -1,8 +1,10 @@
-.gsuiSynthesizer {
+gsui-synthesizer {
+	display: flex;
+	flex-direction: column;
 	overflow: auto;
 	position: relative;
 	box-sizing: border-box;
-	color: var( --gsuiSynthesizer-color );
+	height: 100%;
 	scrollbar-width: thin;
 	scrollbar-color: #ddd #222;
 }
@@ -11,57 +13,65 @@
 .gsuiSynthesizer-head {
 	display: flex;
 	align-items: center;
-	padding-right: 8px;
+	box-sizing: border-box;
+	height: 24px;
 	font-size: 14px;
 	line-height: 1em;
 	user-select: none;
-	background-color: var( --gsuiSynthesizer-head-bg );
+	padding-top: 2px;
+	border-bottom: 2px solid #0002;
+	background-color: var( --gsui-head-bg );
 }
 .gsuiSynthesizer-headTitle {
-	opacity: .3;
+	font-size: 10px;
+	font-weight: bold;
 	line-height: 24px;
-	margin-left: 6px;
+}
+.gsuiSynthesizer-head gsui-toggle {
+	align-self: normal;
+	width: 24px;
 }
 .gsuiSynthesizer-label {
-	width: 42px;
-	margin-left: 6px;
+	width: 36px;
 	text-align: center;
-	font-size: 12px;
-	opacity: .5;
+	font-size: 10px;
+	opacity: .75;
 }
-.gsuiSynthesizer-labelPitch {
+.gsuiSynthesizer-labelUnison {
 	margin-left: auto;
+	width: 38px;
 }
 
 /* .......................................................................... */
 .gsuiSynthesizer-env,
 .gsuiSynthesizer-lfo {
-	height: 118px;
-}
-.gsuiSynthesizer-env {
-	display: none;
+	height: 90px;
+	min-height: 90px;
 }
 
 /* .......................................................................... */
 .gsuiSynthesizer-headOscs {
+	gap: 6px;
 	height: 24px;
+	padding: 2px 10px 0 8px;
 }
 .gsuiSynthesizer-oscList {
+	flex: 1;
 	display: grid;
 	grid-auto-flow: row;
 	grid-auto-rows: min-content;
 	counter-reset: count-osc;
-	background-color: var( --gsuiSynthesizer-bg );
+	background-color: var( --gsui-items-bg );
 }
 
 /* .......................................................................... */
-.gsuiSynthesizer .gsuiOscillator {
+gsui-synthesizer gsui-oscillator {
 	transition: .2s filter;
 }
-.gsuiSynthesizer .gsuiOscillator:hover {
+gsui-synthesizer gsui-oscillator:hover {
 	filter: brightness( 1.05 );
 }
-.gsuiSynthesizer .gsuiOscillator:only-of-type .gsuiOscillator-remove {
+gsui-synthesizer gsui-oscillator:only-of-type .gsuiOscillator-remove {
 	display: none;
 }
 
@@ -84,12 +94,9 @@
 	opacity: .6;
 }
 .gsuiSynthesizer-newOsc::before {
+	position: absolute;
 	content: "";
-	top: 6px;
-	left: 6px;
-	right: 6px;
-	bottom: 6px;
+	inset: 6px;
 	opacity: .4;
 	border: 2px dashed;
-	position: absolute;
 }

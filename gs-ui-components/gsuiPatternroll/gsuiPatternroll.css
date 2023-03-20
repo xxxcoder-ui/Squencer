@@ -1,19 +1,27 @@
-.gsuiPatternroll {
+gsui-patternroll {
 	display: flex;
+	height: 100%;
+}
+
+gsui-patternroll gsui-track {
+	height: var( --gsuiTimewindow-lineH );
 }
 
 .gsuiPatternroll-block {
-	display: flex;
-	flex-direction: column;
+	box-sizing: border-box;
 	white-space: nowrap;
 	color: var( --gsuiPatterns-pattern-color );
+	border-radius: 1px;
+	border-top: 2px solid #ffffff4f;
+	border-bottom: 2px solid #0000000d;
 	--gsuiPatterns-pattern-color: #223;
 }
 .gsui-mute .gsuiPatternroll-block {
 	opacity: .5;
 }
 .gsuiPatternroll-block-header {
-	position: relative;
+	position: absolute;
+	inset: 3px 3px auto;
 	box-sizing: border-box;
 	z-index: 1;
 	display: flex;
@@ -21,7 +29,7 @@
 	flex-direction: column;
 	justify-content: center;
 	padding: 0 4px;
-	font-size: 11px;
+	font-size: 10px;
 	font-weight: bold;
 	background-color: #fff3;
 	pointer-events: none;
@@ -33,11 +41,11 @@
 	text-overflow: ellipsis;
 }
 .gsuiPatternroll-block-content {
-	flex: 1;
-	position: relative;
+	position: absolute;
+	inset: 18px 0 0;
 	pointer-events: none;
 }
-.gsuiPatternroll-block-content:empty {
+.gsuiPatternroll-block[ data-missing ] .gsuiPatternroll-block-content {
 	display: none;
 }
 .gsuiPatternroll-block-content svg {
@@ -56,8 +64,7 @@
 .gsui-row-small .gsuiPatternroll-block-header,
 .gsui-row-small .gsuiPatternroll-block-content {
 	position: absolute;
-	width: 100%;
-	height: 100%;
+	inset: 0;
 }
 
 .gsuiPatternroll-block-placeholder {
@@ -68,7 +75,7 @@
 	font-size: 14px;
 	opacity: .5;
 }
-.gsuiPatternroll-block-content:empty + .gsuiPatternroll-block-placeholder {
+.gsuiPatternroll-block[ data-missing ] .gsuiPatternroll-block-placeholder {
 	display: flex;
 }
 .gsuiPatternroll-block-placeholderIcon {

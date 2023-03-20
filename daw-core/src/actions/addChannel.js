@@ -1,14 +1,14 @@
 "use strict";
 
-DAWCore.actions.addChannel = get => {
-	const channels = get.channels(),
-		id = DAWCore.common.getNextIdOf( channels ),
-		order = DAWCore.common.getNextOrderOf( channels ),
-		name = `chan ${ id }`,
-		chanObj = DAWCore.json.channel( { order, name } );
+DAWCoreActions.set( "addChannel", daw => {
+	const channels = daw.$getChannels();
+	const id = DAWCoreActionsCommon.getNextIdOf( channels );
+	const order = DAWCoreActionsCommon.getNextOrderOf( channels );
+	const name = `chan ${ id }`;
+	const chanObj = DAWCoreJSON.channel( { order, name } );
 
 	return [
 		{ channels: { [ id ]: chanObj } },
 		[ "channels", "addChannel", name ],
 	];
-};
+} );

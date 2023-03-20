@@ -1,29 +1,29 @@
 "use strict";
 
-DAWCore.actions.addDrums = ( patternId, rowId, whenFrom, whenTo, get ) => {
-	return DAWCore.actions._addDrums( "drum", true, patternId, rowId, whenFrom, whenTo, get );
-};
+DAWCoreActions.set( "addDrums", ( daw, patternId, rowId, whenFrom, whenTo ) => {
+	return DAWCoreActions._addDrums( "drum", true, patternId, rowId, whenFrom, whenTo, daw );
+} );
 
-DAWCore.actions._addDrums = ( type, status, patternId, rowId, whenFrom, whenTo, get ) => {
-	const stepDur = 1 / get.stepsPerBeat(),
-		whenA = Math.round( Math.min( whenFrom, whenTo ) / stepDur ),
-		whenB = Math.round( Math.max( whenFrom, whenTo ) / stepDur ),
-		pat = get.pattern( patternId ),
-		drums = get.drums( pat.drums ),
-		patRowId = get.drumrow( rowId ).pattern,
-		patRow = get.pattern( patRowId ),
-		drumsEnt = Object.entries( drums ),
-		drumsMap = drumsEnt.reduce( ( map, [ drumId, drum ] ) => {
-			if ( drum.row === rowId && type === "drum" === "gain" in drum ) {
-				map.set( Math.round( drum.when / stepDur ), drumId );
-			}
-			return map;
-		}, new Map() ),
-		newDrums = {},
-		nextDrumId = +DAWCore.common.getNextIdOf( drums ),
-		jsonType = DAWCore.json[ type ];
-	let nbDrums = 0,
-		drumWhenMax = pat.duration;
+DAWCoreActions._addDrums = ( type, status, patternId, rowId, whenFrom, whenTo, daw ) => {
+	const stepDur = 1 / daw.$getStepsPerBeat();
+	const whenA = Math.round( Math.min( whenFrom, whenTo ) / stepDur );
+	const whenB = Math.round( Math.max( whenFrom, whenTo ) / stepDur );
+	const pat = daw.$getPattern( patternId );
+	const drums = daw.$getDrums( pat.drums );
+	const patRowId = daw.$getDrumrow( rowId ).pattern;
+	const patRow = daw.$getPattern( patRowId );
+	const drumsEnt = Object.entries( drums );
+	const drumsMap = drumsEnt.reduce( ( map, [ drumId, drum ] ) => {
+		if ( drum.row === rowId && type === "drum" === "gain" in drum ) {
+			map.set( Math.round( drum.when / stepDur ), drumId );
+		}
+		return map;
+	}, new Map() );
+	const newDrums = {};
+	const nextDrumId = +DAWCoreActionsCommon.getNextIdOf( drums );
+	const jsonType = DAWCoreJSON[ type ];
+	let nbDrums = 0;
+	let drumWhenMax = pat.duration;
 
 	for ( let w = whenA; w <= whenB; ++w ) {
 		const drmId = drumsMap.get( w );
@@ -49,11 +49,11 @@ DAWCore.actions._addDrums = ( type, status, patternId, rowId, whenFrom, whenTo, 
 		}, 0 );
 	}
 	if ( nbDrums > 0 ) {
-		const bPM = get.beatsPerMeasure(),
-			duration = Math.max( 1, Math.ceil( drumWhenMax / bPM ) ) * bPM,
-			obj = { drums: { [ pat.drums ]: newDrums } };
+		const bPM = daw.$getBeatsPerMeasure();
+		const duration = Math.max( 1, Math.ceil( drumWhenMax / bPM ) ) * bPM;
+		const obj = { drums: { [ pat.drums ]: newDrums } };
 
-		DAWCore.common.updatePatternDuration( obj, patternId, duration, get );
+		DAWCoreActionsCommon.updatePatternDuration( daw, obj, patternId, duration );
 		return [
 			obj,
 			[ "drums", status ? "addDrums" : "removeDrums", pat.name, patRow.name, nbDrums ],

@@ -2,33 +2,38 @@
 
 class gsuiDrumsforms extends gsuiSVGDefs {
 	update( id, drums, drumrows, dur, stepsPerBeat ) {
-		return super.update( id, dur, 1, ...gsuiDrumsforms._render( drums, drumrows, stepsPerBeat ) );
+		return super.update( id, dur, 1, ...gsuiDrumsforms.#render( drums, drumrows, stepsPerBeat ) );
 	}
 
-	static _render( drums, drumrows, sPB ) {
-		const rowsArr = Object.entries( drumrows ),
-			drmW = 1 / sPB,
-			drmH = 1 / rowsArr.length,
-			orders = rowsArr
-				.sort( ( a, b ) => a[ 1 ].order - b[ 1 ].order )
-				.reduce( ( obj, [ id ], i ) => {
-					obj[ id ] = i;
-					return obj;
-				}, {} );
+	static #render( drums, drumrows, sPB ) {
+		const rowsArr = Object.entries( drumrows );
+		const drmW = 1 / sPB;
+		const drmH = 1 / rowsArr.length;
+		const orders = rowsArr
+			.sort( ( a, b ) => a[ 1 ].order - b[ 1 ].order )
+			.reduce( ( obj, [ id ], i ) => {
+				obj[ id ] = i;
+				return obj;
+			}, {} );
 
 		return Object.values( drums )
-			.map( d => gsuiDrumsforms._createDrum( d.when, orders[ d.row ], drmW, drmH ), [] );
+			.map( d => ( "gain" in d
+				? gsuiDrumsforms.#createDrum
+				: gsuiDrumsforms.#createDrumcut )( d.when, orders[ d.row ] * drmH, drmW, drmH ) );
 	}
-	static _createDrum( x, y, w, h ) {
-		const pol = gsuiSVGDefs.create( "polygon" ),
-			yy = y * h,
-			mg = h / 7;
-
-		pol.setAttribute( "points", `
-			${ x },${ yy + mg }
-			${ x },${ yy + h - mg }
-			${ x + w },${ yy + h / 2 }
-		` );
-		return pol;
+	static #createDrum( x, y, w, h ) {
+		return GSUI.$createElementSVG( "polygon", {
+			points: [ x, y, x, y + h * .75, x + w, y + h * .75 / 2 ].join( "," ),
+		} );
+	}
+	static #createDrumcut( x, y, w, h ) {
+		return GSUI.$createElementSVG( "rect", {
+			x,
+			y: y + h * .8,
+			width: w * .9,
+			height: h * .2,
+		} );
 	}
 }
+
+Object.freeze( gsuiDrumsforms );

@@ -1,20 +1,19 @@
 "use strict";
 
-DAWCore.actions.changeTempo = ( bpm, bPM, sPB, get ) => {
-	const bpmChanged = bpm !== get.bpm(),
-		signChanged =
-			bPM !== get.beatsPerMeasure() ||
-			sPB !== get.stepsPerBeat();
+DAWCoreActions.set( "changeTempo", ( daw, bpm, timedivision ) => {
+	const signChanged = timedivision !== daw.$getTimedivision();
+	const bpmChanged = bpm !== daw.$getBPM();
 
 	if ( signChanged || bpmChanged ) {
-		const obj = {},
-			objPatterns = {},
-			patts = Object.entries( get.patterns() );
+		const obj = {};
+		const objPatterns = {};
+		const pats = Object.entries( daw.$getPatterns() );
 
 		if ( signChanged ) {
-			obj.beatsPerMeasure = bPM;
-			obj.stepsPerBeat = sPB;
-			patts.forEach( ( [ id, pat ] ) => {
+			const bPM = timedivision.split( "/" )[ 0 ];
+
+			obj.timedivision = timedivision;
+			pats.forEach( ( [ id, pat ] ) => {
 				if ( pat.type === "keys" || pat.type === "drums" ) {
 					const duration = Math.max( 1, Math.ceil( pat.duration / bPM ) ) * bPM;
 
@@ -26,10 +25,10 @@ DAWCore.actions.changeTempo = ( bpm, bPM, sPB, get ) => {
 		}
 		if ( bpmChanged ) {
 			obj.bpm = bpm;
-			patts.forEach( ( [ id, pat ] ) => {
-				if ( pat.type === "buffer" ) {
-					const bufDur = get.buffer( pat.buffer ).duration,
-						duration = Math.ceil( bufDur * ( bpm / 60 ) );
+			pats.forEach( ( [ id, pat ] ) => {
+				if ( pat.type === "buffer" && !pat.bufferBpm ) {
+					const bufDur = daw.$getBuffer( pat.buffer ).duration;
+					const duration = Math.ceil( bufDur * ( bpm / 60 ) );
 
 					if ( duration !== pat.duration ) {
 						objPatterns[ id ] = { duration };
@@ -37,29 +36,29 @@ DAWCore.actions.changeTempo = ( bpm, bPM, sPB, get ) => {
 				}
 			} );
 		}
-		if ( GSUtils.isntEmpty( objPatterns ) ) {
+		if ( DAWCoreUtils.$isntEmpty( objPatterns ) ) {
 			const objBlocks = {};
 
 			obj.patterns = objPatterns;
-			Object.entries( get.blocks() ).forEach( ( [ id, blc ] ) => {
+			Object.entries( daw.$getBlocks() ).forEach( ( [ id, blc ] ) => {
 				const pat = objPatterns[ blc.pattern ];
 
 				if ( pat && !blc.durationEdited ) {
 					objBlocks[ id ] = { duration: pat.duration };
 				}
 			} );
-			GSUtils.addIfNotEmpty( obj, "blocks", objBlocks );
-			if ( GSUtils.isntEmpty( objBlocks ) ) {
-				const dur = DAWCore.common.calcNewDuration( obj, get );
+			DAWCoreUtils.$addIfNotEmpty( obj, "blocks", objBlocks );
+			if ( DAWCoreUtils.$isntEmpty( objBlocks ) ) {
+				const dur = DAWCoreActionsCommon.calcNewDuration( daw, obj );
 
-				if ( dur !== get.duration() ) {
+				if ( dur !== daw.$getDuration() ) {
 					obj.duration = dur;
 				}
 			}
 		}
 		return [
 			obj,
-			[ "cmp", "changeTempo", bpm, bPM, sPB ],
+			[ "cmp", "changeTempo", bpm, timedivision ],
 		];
 	}
-};
+} );

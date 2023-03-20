@@ -1,13 +1,13 @@
 "use strict";
 
-DAWCore.actions.addOscillator = ( synthId, get ) => {
-	const oscs = get.synth( synthId ).oscillators,
-		id = DAWCore.common.getNextIdOf( oscs ),
-		osc = DAWCore.json.oscillator();
+DAWCoreActions.set( "addOscillator", ( daw, synthId ) => {
+	const oscs = daw.$getSynth( synthId ).oscillators;
+	const id = DAWCoreActionsCommon.getNextIdOf( oscs );
+	const osc = DAWCoreJSON.oscillator();
 
-	osc.order = DAWCore.common.getNextOrderOf( oscs );
+	osc.order = DAWCoreActionsCommon.getNextOrderOf( oscs );
 	return [
 		{ synths: { [ synthId ]: { oscillators: { [ id ]: osc } } } },
-		[ "synth", "addOscillator", get.synth( synthId ).name ],
+		[ "synth", "addOscillator", daw.$getSynth( synthId ).name ],
 	];
-};
+} );

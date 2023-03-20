@@ -1,26 +1,26 @@
 "use strict";
 
-DAWCore.actions.removeChannel = ( id, get ) => {
+DAWCoreActions.set( "removeChannel", ( daw, id ) => {
 	if ( id !== "main" ) {
-		const red = DAWCore.actions.removeChannel_redirect,
-			destMain = { dest: "main" },
-			channels = red( id, get.channels(), { [ id ]: undefined }, destMain ),
-			patterns = red( id, get.patterns(), {}, destMain ),
-			effects = red( id, get.effects(), {}, undefined ),
-			synths = red( id, get.synths(), {}, destMain ),
-			obj = { channels };
+		const red = DAWCoreActions.removeChannel_redirect;
+		const destMain = { dest: "main" };
+		const channels = red( id, daw.$getChannels(), { [ id ]: undefined }, destMain );
+		const patterns = red( id, daw.$getPatterns(), {}, destMain );
+		const effects = red( id, daw.$getEffects(), {}, undefined );
+		const synths = red( id, daw.$getSynths(), {}, destMain );
+		const obj = { channels };
 
-		GSUtils.addIfNotEmpty( obj, "synths", synths );
-		GSUtils.addIfNotEmpty( obj, "effects", effects );
-		GSUtils.addIfNotEmpty( obj, "patterns", patterns );
+		DAWCoreUtils.$addIfNotEmpty( obj, "synths", synths );
+		DAWCoreUtils.$addIfNotEmpty( obj, "effects", effects );
+		DAWCoreUtils.$addIfNotEmpty( obj, "patterns", patterns );
 		return [
 			obj,
-			[ "channels", "removeChannel", get.channel( id ).name ],
+			[ "channels", "removeChannel", daw.$getChannel( id ).name ],
 		];
 	}
-};
+} );
 
-DAWCore.actions.removeChannel_redirect = ( chanId, list, obj, val ) => {
+DAWCoreActions.removeChannel_redirect = ( chanId, list, obj, val ) => {
 	return Object.entries( list ).reduce( ( obj, kv ) => {
 		if ( kv[ 1 ].dest === chanId ) {
 			obj[ kv[ 0 ] ] = val;

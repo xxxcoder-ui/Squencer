@@ -1,10 +1,10 @@
 "use strict";
 
-DAWCore.actions.changeEffect = ( fxId, prop, val, get ) => {
-	const fx = get.effect( fxId );
+DAWCoreActions.set( "changeEffect", ( daw, fxId, prop, val ) => {
+	const fx = daw.$getEffect( fxId );
 
 	return [
 		{ effects: { [ fxId ]: { data: { [ prop ]: val } } } },
-		[ "effects", "changeEffect", get.channel( fx.dest ).name, fx.type, prop ],
+		[ "effects", "changeEffect", daw.$getChannel( fx.dest ).name, fx.type, prop ],
 	];
-};
+} );

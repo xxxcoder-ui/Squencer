@@ -1,124 +1,151 @@
 "use strict";
 
-class gsuiPianoroll {
-	constructor( cb ) {
-		const root = gsuiPianoroll.template.cloneNode( true ),
-			win = GSUI.createElement( "gsui-timewindow", {
-				panelsize: 90,
-				panelsizemin: 70,
-				panelsizemax: 120,
-				lineheight: 20,
-				lineheightmin: 12,
-				lineheightmax: 32,
-				pxperbeat: 64,
-				pxperbeatmin: 20,
-				pxperbeatmax: 200,
-				downpanel: "",
-				downpanelsize: 100,
-				downpanelsizemin: 84,
-				downpanelsizemax: 150,
-			} ),
-			selectionElement = GSUI.createElement( "div", { class: "gsuiBlocksManager-selection gsuiBlocksManager-selection-hidden" } ),
-			blcManager = new gsuiBlocksManager( {
-				rootElement: root,
-				selectionElement,
-				timeline: win._elTimeline,
-				blockDOMChange: this._blockDOMChange.bind( this ),
-				managercallDuplicating: ( keysMap, wIncr ) => this.onchange( "clone", Array.from( keysMap.keys() ), wIncr ),
-				managercallSelecting: ids => this.onchange( "selection", ids ),
-				managercallUnselecting: () => this.onchange( "unselection" ),
-				managercallUnselectingOne: keyId => this.onchange( "unselectionOne", keyId ),
-				managercallMoving: ( keysMap, wIncr, kIncr ) => this.onchange( "move", Array.from( keysMap.keys() ), wIncr, kIncr ),
-				managercallCroppingB: ( keysMap, dIncr ) => this.onchange( "cropEnd", Array.from( keysMap.keys() ), dIncr ),
-				managercallDeleting: keysMap => this.onchange( "remove", Array.from( keysMap.keys() ) ),
-				managercallAttack: ( keysMap, val ) => this.onchange( "changeEnv", Array.from( keysMap.keys() ), "attack", val ),
-				managercallRelease: ( keysMap, val ) => this.onchange( "changeEnv", Array.from( keysMap.keys() ), "release", val ),
-				mouseup: () => {
-					if ( this._blcManager.__status === "cropping-b" ) {
-						this._blcManager.__blcsEditing.forEach( blc => {
-							blc._attack.style.maxWidth =
-							blc._release.style.maxWidth = "";
-						} );
-					}
-				},
-				...cb,
-			} );
+class gsuiPianoroll extends HTMLElement {
+	#rowsByMidi = {};
+	#currKeyDuration = 1;
+	#uiSliderGroup = GSUI.$createElement( "gsui-slidergroup", { beatlines: "" } );
+	#selectionElement = GSUI.$createElement( "div", { class: "gsuiBlocksManager-selection gsuiBlocksManager-selection-hidden" } );
+	#slidersSelect = GSUI.$createElement( "select", { class: "gsuiPianoroll-slidersSelect", size: 6 },
+		GSUI.$createElement( "option", { value: "gain", selected: "" }, "gain" ),
+		GSUI.$createElement( "option", { value: "pan" }, "pan" ),
+		GSUI.$createElement( "option", { value: "lowpass" }, "lowpass" ),
+		GSUI.$createElement( "option", { value: "highpass" }, "highpass" ),
+		GSUI.$createElement( "option", { value: "gainLFOSpeed" }, "gain.lfo.speed" ),
+		GSUI.$createElement( "option", { value: "gainLFOAmp" }, "gain.lfo.amp" ),
+	);
+	#win = GSUI.$createElement( "gsui-timewindow", {
+		panelsize: 100,
+		panelsizemin: 100,
+		panelsizemax: 130,
+		lineheight: 20,
+		lineheightmin: 12,
+		lineheightmax: 32,
+		pxperbeat: 64,
+		pxperbeatmin: 20,
+		pxperbeatmax: 200,
+		downpanel: "",
+		downpanelsize: 120,
+		downpanelsizemin: 120,
+		downpanelsizemax: 160,
+	} );
+	#blcManager = new gsuiBlocksManager( {
+		rootElement: this,
+		selectionElement: this.#selectionElement,
+		timeline: this.#win.timeline,
+		blockDOMChange: this.#blockDOMChange.bind( this ),
+		managercallDuplicating: ( keysMap, wIncr ) => this.onchange( "clone", Array.from( keysMap.keys() ), wIncr ),
+		managercallSelecting: ids => this.onchange( "selection", ids ),
+		managercallUnselecting: () => this.onchange( "unselection" ),
+		managercallUnselectingOne: keyId => this.onchange( "unselectionOne", keyId ),
+		managercallMoving: ( keysMap, wIncr, kIncr ) => this.onchange( "move", Array.from( keysMap.keys() ), wIncr, kIncr ),
+		managercallCroppingB: ( keysMap, dIncr ) => this.onchange( "cropEnd", Array.from( keysMap.keys() ), dIncr ),
+		managercallDeleting: keysMap => this.onchange( "remove", Array.from( keysMap.keys() ) ),
+	} );
 
-		this._win = win;
-		this.rootElement = root;
-		this.timeline = win._elTimeline;
-		this.uiKeys = GSUI.createElement( "gsui-keys" );
-		this.onchange = cb.onchange;
-		this._blcManager = blcManager;
-		this._rowsByMidi = {};
-		this._currKeyDuration = 1;
-		this._selectionElement = selectionElement;
-		this._uiSliderGroup = GSUI.createElement( "gsui-slidergroup", { beatlines: "" } );
-		this._slidersSelect = GSUI.createElement( "select", { class: "gsuiPianoroll-slidersSelect", size: 4 },
-			GSUI.createElement( "option", { value: "gain", selected: "" }, "gain" ),
-			GSUI.createElement( "option", { value: "pan" }, "pan" ),
-			GSUI.createElement( "option", { value: "lowpass" }, "lowpass" ),
-			GSUI.createElement( "option", { value: "highpass" }, "highpass" ),
-		);
+	constructor() {
+		super();
+		this.timeline = this.#win.timeline;
+		this.uiKeys = GSUI.$createElement( "gsui-keys" );
+		this.onchange = null;
+		Object.seal( this );
 
-		root.addEventListener( "gsuiEvents", this._ongsuiEvents.bind( this ) );
-		this._slidersSelect.onchange = this._onchangeSlidersSelect.bind( this );
-
-		this._ongsuiTimewindowPxperbeat( 64 );
-		this._ongsuiTimewindowLineheight( 20 );
-		this._onchangeSlidersSelect();
+		GSUI.$listenEvents( this, {
+			gsuiTimewindow: {
+				pxperbeat: d => this.#ongsuiTimewindowPxperbeat( d.args[ 0 ] ),
+				lineheight: d => this.#ongsuiTimewindowLineheight( d.args[ 0 ] ),
+			},
+			gsuiTimeline: {
+				inputLoop: d => this.#ongsuiTimelineChangeLoop( false, ...d.args ),
+				changeLoop: d => this.#ongsuiTimelineChangeLoop( true, ...d.args ),
+				changeCurrentTime: d => this.#ongsuiTimelineChangeCurrentTime( d.args[ 0 ] ),
+			},
+			gsuiSliderGroup: {
+				input: d => this.#ongsuiSliderGroupInput( d.args[ 1 ] ),
+				inputEnd: () => this.#ongsuiSliderGroupInputEnd(),
+				change: d => this.#ongsuiSliderGroupChange( d ),
+			},
+		} );
+		this.#slidersSelect.onchange = this.#onchangeSlidersSelect.bind( this );
+		this.#ongsuiTimewindowPxperbeat( 64 );
+		this.#ongsuiTimewindowLineheight( 20 );
+		this.#onchangeSlidersSelect();
 		this.reset();
 	}
 
+	// .........................................................................
+	connectedCallback() {
+		if ( !this.firstChild ) {
+			this.classList.add( "gsuiBlocksManager" );
+			GSUI.$setAttribute( this, "tabindex", -1 );
+			this.append( this.#win );
+			this.#win.querySelector( ".gsuiTimewindow-panelContent" ).append( this.uiKeys );
+			this.#win.querySelector( ".gsuiTimewindow-panelContentDown" ).prepend( this.#slidersSelect );
+			this.#win.querySelector( ".gsuiTimewindow-contentDown" ).prepend( this.#uiSliderGroup );
+			this.#win.querySelector( ".gsuiTimewindow-mainContent" ).append( this.#selectionElement );
+			this.scrollToMiddle();
+		}
+	}
+	static get observedAttributes() {
+		return [ "disabled", "currenttime" ];
+	}
+	attributeChangedCallback( prop, prev, val ) {
+		if ( prev !== val ) {
+			switch ( prop ) {
+				case "disabled":
+					GSUI.$setAttribute( this.#win, "disabled", val );
+					break;
+				case "currenttime":
+					GSUI.$setAttribute( this.#win, "currenttime", val );
+					GSUI.$setAttribute( this.#uiSliderGroup, "currenttime", val );
+					break;
+			}
+		}
+	}
+
+	// .........................................................................
 	reset() {
-		this._currKeyDuration = 1;
+		this.#currKeyDuration = 1;
 	}
-	attached() {
-		this.rootElement.append( this._win );
-		this._win.querySelector( ".gsuiTimewindow-panelContent" ).append( this.uiKeys );
-		this._win.querySelector( ".gsuiTimewindow-panelContentDown" ).prepend( this._slidersSelect );
-		this._win.querySelector( ".gsuiTimewindow-contentDown" ).prepend( this._uiSliderGroup );
-		this._win.querySelector( ".gsuiTimewindow-mainContent" ).append( this._selectionElement );
-		this.scrollToMiddle();
+	setData( data ) {
+		this.#blcManager.setData( data );
 	}
-	timeSignature( a, b ) {
-		GSUI.setAttribute( this._win, "timesignature", `${ a },${ b }` );
-		GSUI.setAttribute( this._uiSliderGroup, "timesignature", `${ a },${ b }` );
+	setCallbacks( cb ) {
+		this.onchange = cb.onchange;
 	}
-	currentTime( t ) {
-		GSUI.setAttribute( this._win, "currenttime", t );
-		GSUI.setAttribute( this._uiSliderGroup, "currenttime", t );
+	timedivision( timediv ) {
+		GSUI.$setAttribute( this.#win, "timedivision", timediv );
+		GSUI.$setAttribute( this.#uiSliderGroup, "timedivision", timediv );
 	}
 	loop( a, b ) {
-		GSUI.setAttribute( this._win, "loop", Number.isFinite( a ) && `${ a }-${ b }` );
-		GSUI.setAttribute( this._uiSliderGroup, "loopa", a );
-		GSUI.setAttribute( this._uiSliderGroup, "loopb", b );
+		GSUI.$setAttribute( this.#win, "loop", Number.isFinite( a ) && `${ a }-${ b }` );
+		GSUI.$setAttribute( this.#uiSliderGroup, "loopa", a );
+		GSUI.$setAttribute( this.#uiSliderGroup, "loopb", b );
 	}
 	scrollToMiddle() {
-		this._win.scrollTop = this._win.querySelector( ".gsuiTimewindow-rows" ).clientHeight / 2;
+		this.#win.scrollTop = this.#win.querySelector( ".gsuiTimewindow-rows" ).clientHeight / 2;
 	}
 	scrollToKeys() {
-		const blc = this._win.querySelector( ".gsuiBlocksManager-block" );
+		const blc = this.#win.querySelector( ".gsuiBlocksManager-block" );
 
 		if ( blc ) {
-			const key = +blc.dataset.keyNote,
-				maxRow = +this._win.querySelector( ".gsui-row" ).dataset.midi;
+			const key = +blc.dataset.keyNote;
+			const maxRow = +this.#win.querySelector( ".gsui-row" ).dataset.midi;
 
-			this._win.scrollTop = ( maxRow - key - 3.5 ) * this._win.getAttribute( "lineheight" );
+			this.#win.scrollTop = ( maxRow - key - 3.5 ) * GSUI.$getAttributeNum( this.#win, "lineheight" );
 		}
 	}
 	octaves( from, nb ) {
 		const rows = this.uiKeys.octaves( from, nb );
 
-		Object.keys( this._rowsByMidi ).forEach( k => delete this._rowsByMidi[ k ] );
+		Object.keys( this.#rowsByMidi ).forEach( k => delete this.#rowsByMidi[ k ] );
 		rows.forEach( el => {
 			const midi = +el.dataset.midi;
 
-			el.onmousedown = this._rowMousedown.bind( this, midi );
-			this._rowsByMidi[ midi ] = el;
+			el.onmousedown = this.#rowMousedown.bind( this, midi );
+			this.#rowsByMidi[ midi ] = el;
 		} );
-		this._win.querySelector( ".gsuiTimewindow-rows" ).append( ...rows );
-		this._win.querySelector( ".gsuiTimewindow-rows" ).style.height = `${ rows.length }em`;
+		this.#win.querySelector( ".gsuiTimewindow-rows" ).append( ...rows );
+		this.#win.querySelector( ".gsuiTimewindow-rows" ).style.height = `${ rows.length }em`;
 		this.scrollToMiddle();
 		this.reset();
 	}
@@ -126,116 +153,122 @@ class gsuiPianoroll {
 	// Block's UI functions
 	// ........................................................................
 	addKey( id, obj ) {
-		const blc = gsuiPianoroll.blockTemplate.cloneNode( true ),
-			dragline = new gsuiDragline();
+		const blc = GSUI.$getTemplate( "gsui-pianoroll-block" );
+		const dragline = new gsuiDragline();
 
 		blc.dataset.id = id;
-		blc.onmousedown = this._blcMousedown.bind( this, id );
-		dragline.onchange = this._onchangeDragline.bind( this, id );
-		blc._attack = blc.querySelector( ".gsuiPianoroll-block-attack" );
-		blc._release = blc.querySelector( ".gsuiPianoroll-block-release" );
+		blc.onmousedown = this.#blcMousedown.bind( this, id );
+		dragline.onchange = this.#onchangeDragline.bind( this, id );
 		blc._dragline = dragline;
 		blc._draglineDrop = blc.querySelector( ".gsuiDragline-drop" );
 		blc.append( dragline.rootElement );
-		dragline.getDropAreas = this._getDropAreas.bind( this, id );
-		this._blcManager.__blcs.set( id, blc );
+		dragline.getDropAreas = this.#getDropAreas.bind( this, id );
+		this.#blcManager.getBlocks().set( id, blc );
 		obj.selected
-			? this._blcManager.__blcsSelected.set( id, blc )
-			: this._blcManager.__blcsSelected.delete( id );
-		this._uiSliderGroup.set( id, obj.when, obj.duration, obj[ this._slidersSelect.value ] );
-		this._blockDOMChange( blc, "key", obj.key );
-		this._blockDOMChange( blc, "when", obj.when );
-		this._blockDOMChange( blc, "duration", obj.duration );
-		this._blockDOMChange( blc, "selected", obj.selected );
-		this._blockDOMChange( blc, "attack", obj.attack );
-		this._blockDOMChange( blc, "release", obj.release );
-		this._blockDOMChange( blc, "pan", obj.pan );
-		this._blockDOMChange( blc, "gain", obj.gain );
-		this._blockDOMChange( blc, "lowpass", obj.lowpass );
-		this._blockDOMChange( blc, "highpass", obj.highpass );
-		this._blockDOMChange( blc, "prev", obj.prev );
-		this._blockDOMChange( blc, "next", obj.next );
+			? this.#blcManager.getSelectedBlocks().set( id, blc )
+			: this.#blcManager.getSelectedBlocks().delete( id );
+		this.#uiSliderGroup.set( id, obj.when, obj.duration, obj[ this.#slidersSelect.value ] );
+		this.#blockDOMChange( blc, "key", obj.key );
+		this.#blockDOMChange( blc, "when", obj.when );
+		this.#blockDOMChange( blc, "duration", obj.duration );
+		this.#blockDOMChange( blc, "selected", obj.selected );
+		this.#blockDOMChange( blc, "pan", obj.pan );
+		this.#blockDOMChange( blc, "gain", obj.gain );
+		this.#blockDOMChange( blc, "lowpass", obj.lowpass );
+		this.#blockDOMChange( blc, "highpass", obj.highpass );
+		this.#blockDOMChange( blc, "gainLFOSpeed", obj.gainLFOSpeed );
+		this.#blockDOMChange( blc, "gainLFOAmp", obj.gainLFOAmp );
+		this.#blockDOMChange( blc, "prev", obj.prev );
+		this.#blockDOMChange( blc, "next", obj.next );
 	}
 	removeKey( id ) {
-		const blc = this._blcManager.__blcs.get( id ),
-			blcPrev = this._blcManager.__blcs.get( blc.dataset.prev );
+		const blc = this.#blcManager.getBlocks().get( id );
+		const blcPrev = this.#blcManager.getBlocks().get( blc.dataset.prev );
 
 		blc.remove();
 		if ( blcPrev ) {
 			blcPrev._dragline.linkTo( null );
 		}
-		this._blcManager.__blcs.delete( id );
-		this._blcManager.__blcsSelected.delete( id );
-		this._uiSliderGroup.delete( id );
+		this.#blcManager.getBlocks().delete( id );
+		this.#blcManager.getSelectedBlocks().delete( id );
+		this.#uiSliderGroup.delete( id );
 	}
 	changeKeyProp( id, prop, val ) {
-		const blc = this._blcManager.__blcs.get( id );
+		const blc = this.#blcManager.getBlocks().get( id );
 
-		this._blockDOMChange( blc, prop, val );
-		blc.dataset[ prop === "key" ? "keyNote" : prop ] = val;
+		this.#blockDOMChange( blc, prop, val );
+		if ( val === null ) {
+			delete blc.dataset[ prop ];
+		} else {
+			blc.dataset[ prop === "key" ? "keyNote" : prop ] = val;
+		}
 		if ( prop === "selected" ) {
 			val
-				? this._blcManager.__blcsSelected.set( id, blc )
-				: this._blcManager.__blcsSelected.delete( id );
+				? this.#blcManager.getSelectedBlocks().set( id, blc )
+				: this.#blcManager.getSelectedBlocks().delete( id );
 		}
 	}
-	_blockDOMChange( el, prop, val ) {
+	#blockDOMChange( el, prop, val ) {
 		switch ( prop ) {
-			case "when": {
+			case "when":
 				el.style.left = `${ val }em`;
-				this._uiSliderGroup.setProp( el.dataset.id, "when", val );
-				this._blockRedrawDragline( el );
-			} break;
-			case "duration": {
+				this.#uiSliderGroup.setProp( el.dataset.id, "when", val );
+				this.#blockRedrawDragline( el );
+				break;
+			case "duration":
 				el.style.width = `${ val }em`;
-				this._uiSliderGroup.setProp( el.dataset.id, "duration", val );
-				this._currKeyDuration = val;
-				this._blockRedrawDragline( el );
-			} break;
-			case "deleted": {
+				this.#uiSliderGroup.setProp( el.dataset.id, "duration", val );
+				this.#currKeyDuration = val;
+				this.#blockRedrawDragline( el );
+				break;
+			case "deleted":
 				el.classList.toggle( "gsuiBlocksManager-block-hidden", !!val );
-			} break;
-			case "selected": {
+				break;
+			case "selected":
 				el.classList.toggle( "gsuiBlocksManager-block-selected", !!val );
-				this._uiSliderGroup.setProp( el.dataset.id, "selected", !!val );
-			} break;
-			case "row": {
-				this._blockDOMChange( el, "key", el.dataset.keyNote - val );
-			} break;
+				this.#uiSliderGroup.setProp( el.dataset.id, "selected", !!val );
+				break;
+			case "row":
+				this.#blockDOMChange( el, "key", el.dataset.keyNote - val );
+				break;
 			case "key": {
-				const row = this._getRowByMidi( val );
+				const row = this.#getRowByMidi( val );
 
 				el.dataset.key = gsuiKeys.keyNames.en[ row.dataset.key ];
 				row.firstElementChild.append( el );
-				this._blockRedrawDragline( el );
+				this.#blockRedrawDragline( el );
 			} break;
 			case "prev": {
-				const blc = this._blcManager.__blcs.get( val );
+				const blc = this.#blcManager.getBlocks().get( val );
 
 				el.classList.toggle( "gsuiPianoroll-block-prevLinked", !!val );
 				blc && blc._dragline.linkTo( el._draglineDrop );
 			} break;
 			case "next": {
-				const blc = this._blcManager.__blcs.get( val );
+				const blc = this.#blcManager.getBlocks().get( val );
 
 				el.classList.toggle( "gsuiPianoroll-block-nextLinked", !!val );
 				el._dragline.linkTo( blc && blc._draglineDrop );
 			} break;
-			case "attack": el._attack.style.width = `${ val }em`; break;
-			case "release": el._release.style.width = `${ val }em`; break;
-			case "pan": this._blockSliderUpdate( "pan", el, val ); break;
-			case "gain": this._blockSliderUpdate( "gain", el, val ); break;
-			case "lowpass": this._blockSliderUpdate( "lowpass", el, val ); break;
-			case "highpass": this._blockSliderUpdate( "highpass", el, val ); break;
+			case "pan":
+			case "gain":
+			case "lowpass":
+			case "highpass":
+				this.#blockSliderUpdate( prop, el, val );
+				break;
+			case "gainLFOAmp":
+			case "gainLFOSpeed":
+				this.#blockSliderUpdate( prop, el, gsuiPianoroll.#mulToX( val ) );
+				break;
 		}
 	}
-	_blockSliderUpdate( nodeName, el, val ) {
-		if ( this._slidersSelect.value === nodeName ) {
-			this._uiSliderGroup.setProp( el.dataset.id, "value", val );
+	#blockSliderUpdate( nodeName, el, val ) {
+		if ( this.#slidersSelect.value === nodeName ) {
+			this.#uiSliderGroup.setProp( el.dataset.id, "value", val );
 		}
 	}
-	_blockRedrawDragline( el ) {
-		const blcPrev = this._blcManager.__blcs.get( el.dataset.prev );
+	#blockRedrawDragline( el ) {
+		const blcPrev = this.#blcManager.getBlocks().get( el.dataset.prev );
 
 		el._dragline.redraw();
 		blcPrev && blcPrev._dragline.redraw();
@@ -243,121 +276,145 @@ class gsuiPianoroll {
 
 	// Private small getters
 	// ........................................................................
-	_getRowByMidi( midi ) { return this._rowsByMidi[ midi ]; }
+	#getRowByMidi( midi ) { return this.#rowsByMidi[ midi ]; }
 
 	// ........................................................................
-	_ongsuiEvents( e ) {
-		switch ( e.detail.component ) {
-			case "gsuiTimewindow":
-				switch ( e.detail.eventName ) {
-					case "pxperbeat": this._ongsuiTimewindowPxperbeat( e.detail.args[ 0 ] ); break;
-					case "lineheight": this._ongsuiTimewindowLineheight( e.detail.args[ 0 ] ); break;
-				}
-				break;
-			case "gsuiTimeline":
-				switch ( e.detail.eventName ) {
-					case "inputLoop":
-					case "changeLoop": this._ongsuiTimelineChangeLoop( ...e.detail.args ); break;
-					case "changeCurrentTime": this._ongsuiTimelineChangeCurrentTime( e.detail.args[ 0 ] ); break;
-				}
-				break;
-			case "gsuiSliderGroup":
-				switch ( e.detail.eventName ) {
-					case "change": return this._ongsuiSliderGroupChange( e );
-				}
-				break;
+	#ongsuiTimewindowPxperbeat( ppb ) {
+		this.#blcManager.setPxPerBeat( ppb );
+		this.#blcManager.getBlocks().forEach( blc => blc._dragline.redraw() );
+		GSUI.$setAttribute( this.#uiSliderGroup, "pxperbeat", ppb );
+	}
+	#ongsuiTimewindowLineheight( px ) {
+		this.#blcManager.setFontSize( px );
+		Array.from( this.#blcManager.getRows() ).forEach( el => el.classList.toggle( "gsui-row-small", px <= 44 ) );
+		this.#blcManager.getBlocks().forEach( blc => blc._dragline.redraw() );
+	}
+	#ongsuiTimelineChangeCurrentTime( t ) {
+		GSUI.$setAttribute( this.#uiSliderGroup, "currenttime", t );
+		return true;
+	}
+	#ongsuiTimelineChangeLoop( ret, a, b ) {
+		GSUI.$setAttribute( this.#uiSliderGroup, "loopa", a );
+		GSUI.$setAttribute( this.#uiSliderGroup, "loopb", b );
+		return ret;
+	}
+	#ongsuiSliderGroupInput( val ) {
+		const prop = this.#slidersSelect.value;
+
+		Array.prototype.find.call( this.#slidersSelect.children,
+			o => o.value === prop ).dataset.number = ( prop.startsWith( "gainLFO" )
+			? gsuiPianoroll.#xToMul( val )
+			: val ).toFixed( 2 );
+	}
+	#ongsuiSliderGroupInputEnd() {
+		const prop = this.#slidersSelect.value;
+
+		delete Array.prototype.find.call( this.#slidersSelect.children,
+			o => o.value === prop ).dataset.number;
+	}
+	#ongsuiSliderGroupChange( d ) {
+		const prop = this.#slidersSelect.value;
+
+		d.component = "gsuiPianoroll";
+		d.eventName = "changeKeysProps";
+		if ( prop.startsWith( "gainLFO" ) ) {
+			d.args[ 0 ].forEach( v => v[ 1 ] = gsuiPianoroll.#xToMul( v[ 1 ] ) );
 		}
-		e.stopPropagation();
+		d.args.unshift( prop );
+		return true;
 	}
-	_ongsuiTimewindowPxperbeat( ppb ) {
-		this._blcManager.__pxPerBeat = ppb;
-		this._blcManager.__blcs.forEach( blc => blc._dragline.redraw() );
-		this._uiSliderGroup.setPxPerBeat( ppb );
+	static #xToMul( x ) {
+		switch ( x ) {
+			case 6:  return 4;
+			case 5:  return 3.5;
+			case 4:  return 3;
+			case 3:  return 2.5;
+			case 2:  return 2;
+			case 1:  return 1.5;
+			default: return 1;
+			case -1: return  .75;
+			case -2: return  .5;
+			case -3: return  .4;
+			case -4: return  .3333;
+			case -5: return  .2857;
+			case -6: return  .25;
+		}
 	}
-	_ongsuiTimewindowLineheight( px ) {
-		this._blcManager.__fontSize = px;
-		Array.from( this._blcManager.__rows ).forEach( el => el.classList.toggle( "gsui-row-small", px <= 44 ) );
-		this._blcManager.__blcs.forEach( blc => blc._dragline.redraw() );
-	}
-	_ongsuiTimelineChangeCurrentTime( t ) {
-		GSUI.setAttribute( this._uiSliderGroup, "currenttime", t );
-	}
-	_ongsuiTimelineChangeLoop( a, b ) {
-		GSUI.setAttribute( this._uiSliderGroup, "loopa", a );
-		GSUI.setAttribute( this._uiSliderGroup, "loopb", b );
-	}
-	_ongsuiSliderGroupChange( e ) {
-		e.detail.component = "gsuiPianoroll";
-		e.detail.eventName = "changeKeysProps";
-		e.detail.args.unshift( this._slidersSelect.value );
+	static #mulToX( mul ) {
+		if ( mul >= 4      ) { return 6; }
+		if ( mul >= 3.5    ) { return 5; }
+		if ( mul >= 3      ) { return 4; }
+		if ( mul >= 2.5    ) { return 3; }
+		if ( mul >= 2      ) { return 2; }
+		if ( mul >= 1.5    ) { return 1; }
+		if ( mul >= 1      ) { return 0; }
+		if ( mul >=  .75   ) { return -1; }
+		if ( mul >=  .5    ) { return -2; }
+		if ( mul >=  .4    ) { return -3; }
+		if ( mul >=  .3333 ) { return -4; }
+		if ( mul >=  .2857 ) { return -5; }
+		if ( mul >=  .25   ) { return -6; }
 	}
 
 	// ........................................................................
-	_blcMousedown( id, e ) {
+	#blcMousedown( id, e ) {
 		const dline = e.currentTarget._dragline.rootElement;
 
 		e.stopPropagation();
 		if ( !dline.contains( e.target ) ) {
-			this._blcManager.__mousedown( e );
-			if ( this._blcManager.__status === "cropping-b" ) {
-				this._blcManager.__blcsEditing.forEach( ( blc, id ) => {
-					const att = +blc.dataset.attack,
-						rel = +blc.dataset.release;
-
-					blc._attack.style.maxWidth = `${ att / ( att + rel ) * 100 }%`;
-					blc._release.style.maxWidth = `${ rel / ( att + rel ) * 100 }%`;
-				} );
-			}
+			this.#blcManager.onmousedown( e );
 		}
 	}
-	_rowMousedown( key, e ) {
-		this._blcManager.__mousedown( e );
+	#rowMousedown( key, e ) {
+		this.#blcManager.onmousedown( e );
 		if ( e.button === 0 && !e.shiftKey ) {
-			const when = this._blcManager.__roundBeat( this._blcManager.__getWhenByPageX( e.pageX ) );
+			const when = this.#blcManager.roundBeat( this.#blcManager.getWhenByPageX( e.pageX ) );
 
-			this.onchange( "add", key, when, this._currKeyDuration );
+			this.onchange( "add", key, when, this.#currKeyDuration );
 		}
 	}
-	_onchangeSlidersSelect() {
-		const nodeName = this._slidersSelect.value,
-			slidGroup = this._uiSliderGroup;
+	#onchangeSlidersSelect() {
+		const prop = this.#slidersSelect.value;
+		const grp = this.#uiSliderGroup;
 
-		switch ( nodeName ) {
-			case "pan":      slidGroup.minMaxStep( -1, 1, .02 ); break;
-			case "gain":     slidGroup.minMaxStep(  0, 1, .01 ); break;
-			case "lowpass":  slidGroup.minMaxStep(  0, 1, .01, 3 ); break;
-			case "highpass": slidGroup.minMaxStep(  0, 1, .01, 3 ); break;
+		switch ( prop ) {
+			case "pan":          grp.options( { min: -1, max: 1, def:  0, step: .05 } ); break;
+			case "gain":         grp.options( { min:  0, max: 1, def: .8, step: .025 } ); break;
+			case "lowpass":      grp.options( { min:  0, max: 1, def:  1, step: .025, exp: 3 } ); break;
+			case "highpass":     grp.options( { min:  0, max: 1, def:  1, step: .025, exp: 3 } ); break;
+			case "gainLFOAmp":   grp.options( { min: -6, max: 6, def:  0, step: 1 } ); break;
+			case "gainLFOSpeed": grp.options( { min: -6, max: 6, def:  0, step: 1 } ); break;
 		}
-		this._blcManager.__blcs.forEach( ( blc, id ) => {
-			this._uiSliderGroup.setProp( id, "value", blc.dataset[ nodeName ] );
+		this.#blcManager.getBlocks().forEach( ( blc, id ) => {
+			const val = +blc.dataset[ prop ];
+			const val2 = prop.startsWith( "gainLFO" )
+				? gsuiPianoroll.#mulToX( val )
+				: val;
+
+			this.#uiSliderGroup.setProp( id, "value", val2 );
 		} );
 	}
 
 	// Key's functions
 	// ........................................................................
-	_getDropAreas( id ) {
-		const d = this._blcManager.__blcs.get( id ).dataset,
-			when = +d.when + +d.duration,
-			arr = [];
+	#getDropAreas( id ) {
+		const d = this.#blcManager.getBlocks().get( id ).dataset;
+		const when = +d.when + +d.duration;
+		const arr = [];
 
-		this._blcManager.__blcs.forEach( blc => {
+		this.#blcManager.getBlocks().forEach( blc => {
 			const d = blc.dataset;
 
-			if ( +d.when >= when && ( d.prev === "null" || d.prev === id ) ) {
+			if ( +d.when >= when && ( d.prev === undefined || d.prev === id ) ) {
 				arr.push( blc.firstElementChild );
 			}
 		} );
 		return arr;
 	}
-	_onchangeDragline( id, el ) {
+	#onchangeDragline( id, el ) {
 		this.onchange( "redirect", id, el ? el.parentNode.dataset.id : null );
 	}
 }
 
-gsuiPianoroll.template = document.querySelector( "#gsuiPianoroll-template" );
-gsuiPianoroll.template.remove();
-gsuiPianoroll.template.removeAttribute( "id" );
-
-gsuiPianoroll.blockTemplate = document.querySelector( "#gsuiPianoroll-block-template" );
-gsuiPianoroll.blockTemplate.remove();
-gsuiPianoroll.blockTemplate.removeAttribute( "id" );
+Object.freeze( gsuiPianoroll );
+customElements.define( "gsui-pianoroll", gsuiPianoroll );

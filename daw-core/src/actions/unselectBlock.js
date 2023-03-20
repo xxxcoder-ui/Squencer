@@ -1,8 +1,8 @@
 "use strict";
 
-DAWCore.actions.unselectBlock = id => {
+DAWCoreActions.set( "unselectBlock", ( _daw, id ) => {
 	return [
 		{ blocks: { [ id ]: { selected: false } } },
 		[ "blocks", "unselectBlock" ],
 	];
-};
+} );

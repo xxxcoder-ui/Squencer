@@ -1,5 +1,5 @@
 "use strict";
 
-DAWCore.actions.addDrumcuts = ( patternId, rowId, whenFrom, whenTo, get ) => {
-	return DAWCore.actions._addDrums( "drumcut", true, patternId, rowId, whenFrom, whenTo, get );
-};
+DAWCoreActions.set( "addDrumcuts", ( daw, patternId, rowId, whenFrom, whenTo ) => {
+	return DAWCoreActions._addDrums( "drumcut", true, patternId, rowId, whenFrom, whenTo, daw );
+} );

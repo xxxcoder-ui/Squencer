@@ -1,10 +1,10 @@
 "use strict";
 
-DAWCore.actions.toggleLFO = ( synthId, get ) => {
-	const toggle = !get.synth( synthId ).lfo.toggle;
+DAWCoreActions.set( "toggleLFO", ( daw, synthId ) => {
+	const toggle = !daw.$getSynth( synthId ).lfo.toggle;
 
 	return [
 		{ synths: { [ synthId ]: { lfo: { toggle } } } },
-		[ "synth", "toggleLFO", get.synth( synthId ).name, toggle ],
+		[ "synth", "toggleLFO", daw.$getSynth( synthId ).name, toggle ],
 	];
-};
+} );

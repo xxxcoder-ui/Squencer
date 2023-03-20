@@ -1,8 +1,8 @@
 "use strict";
 
-DAWCore.actions.redirectPatternBuffer = ( id, dest, get ) => {
+DAWCoreActions.set( "redirectPatternBuffer", ( daw, id, dest ) => {
 	return [
 		{ patterns: { [ id ]: { dest } } },
-		[ "patterns", "redirectPatternBuffer", get.pattern( id ).name, get.channel( dest ).name ],
+		[ "patterns", "redirectPatternBuffer", daw.$getPattern( id ).name, daw.$getChannel( dest ).name ],
 	];
-};
+} );

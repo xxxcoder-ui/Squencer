@@ -1,150 +1,154 @@
 "use strict";
 
 class gsuiEffects extends HTMLElement {
-	constructor() {
-		const elFxsList = GSUI.getTemplate( "gsui-effects" ),
-			elBtnSelect = elFxsList.querySelector( ".gsuiEffects-addBtn" ),
-			elAddSelect = elFxsList.querySelector( ".gsuiEffects-addSelect" );
+	$askData = GSUI.$noop;
+	#fxsHtml = new Map();
+	#dispatch = GSUI.$dispatchEvent.bind( null, this, "gsuiEffects" );
+	#children = GSUI.$getTemplate( "gsui-effects" );
+	#elements = GSUI.$findElements( this.#children, {
+		addBtn: ".gsuiEffects-addBtn",
+		addSelect: ".gsuiEffects-addSelect",
+	} );
+	static #fxsMap = Object.freeze( {
+		delay: { cmp: "gsui-fx-delay", name: "Delay", height: 140 },
+		filter: { cmp: "gsui-fx-filter", name: "Filter", height: 160 },
+	} );
 
+	constructor() {
 		super();
-		this.askData = () => {};
-		this._fxsHtml = new Map();
-		this._elFxsList = elFxsList;
-		this._elAddSelect = elAddSelect;
-		this._dispatch = GSUI.dispatchEvent.bind( null, this, "gsuiEffects" );
 		Object.seal( this );
 
-		elBtnSelect.onclick = () => this._elAddSelect.value = "";
-		elAddSelect.onchange = this._onchangeAddSelect.bind( this );
-		elAddSelect.onkeydown = () => false;
+		this.#elements.addBtn.onclick = () => this.#elements.addSelect.value = "";
+		this.#elements.addSelect.onchange = this.#onchangeAddSelect.bind( this );
+		this.#elements.addSelect.onkeydown = () => false;
 		new gsuiReorder( {
-			rootElement: elFxsList,
+			rootElement: this,
 			direction: "column",
 			dataTransferType: "effect",
 			itemSelector: ".gsuiEffects-fx",
 			handleSelector: ".gsuiEffects-fx-grip",
-			parentSelector: ".gsuiEffects-list",
+			parentSelector: "gsui-effects",
 		} );
-		GSUI.listenEvent( this, {
+		GSUI.$listenEvents( this, {
+			gsuiToggle: {
+				toggle: ( d, btn ) => {
+					this.#dispatch( "toggleEffect", btn.parentNode.parentNode.dataset.id );
+				},
+			},
 			default: {
-				liveChange: ( d, e ) => {
-					d.args.unshift( e.target.dataset.id );
+				liveChange: ( d, t ) => {
+					d.args.unshift( t.dataset.id );
 					d.component = "gsuiEffects";
 					d.eventName = "liveChangeEffect";
 					return true;
 				},
-				changeProp: ( d, e ) => {
-					d.args.unshift( e.target.dataset.id );
+				changeProp: ( d, t ) => {
+					d.args.unshift( t.dataset.id );
 					d.component = "gsuiEffects";
 					d.eventName = "changeEffect";
 					return true;
 				},
 			},
 		} );
-		this._fillSelect();
 	}
 
 	// .........................................................................
 	connectedCallback() {
 		if ( !this.firstChild ) {
-			this.classList.add( "gsuiEffects" );
-			this.append( this._elFxsList );
+			this.append( ...this.#children );
+			this.#children = null;
+		}
+	}
+	static get observedAttributes() {
+		return [ "timedivision" ];
+	}
+	attributeChangedCallback( prop, prev, val ) {
+		if ( prev !== val ) {
+			switch ( prop ) {
+				case "timedivision":
+					this.#fxsHtml.forEach( html => GSUI.$setAttribute( html.content.firstChild, "timedivision", val ) );
+					break;
+			}
 		}
 	}
 
 	// .........................................................................
-	expandToggleEffect( id ) {
-		const root = this._fxsHtml.get( id ).root;
-
-		this.expandEffect( id, !root.classList.contains( "gsuiEffects-fx-expanded" ) );
+	$getFxHTML( id ) {
+		return this.#fxsHtml.get( id );
 	}
-	expandEffect( id, b ) {
-		const html = this._fxsHtml.get( id ),
-			type = html.root.dataset.type;
+	$expandToggleEffect( id ) {
+		const root = this.#fxsHtml.get( id ).root;
+
+		this.$expandEffect( id, !root.classList.contains( "gsuiEffects-fx-expanded" ) );
+	}
+	$expandEffect( id, b ) {
+		const html = this.#fxsHtml.get( id );
+		const type = html.root.dataset.type;
 
 		html.root.classList.toggle( "gsuiEffects-fx-expanded", b );
 		html.expand.dataset.icon = b ? "caret-down" : "caret-right";
-		html.content.style.height = `${ b ? gsuiEffects.fxsMap.get( type ).height : 0 }px`;
+		html.content.style.height = `${ b ? gsuiEffects.#fxsMap[ type ].height : 0 }px`;
 	}
 
 	// .........................................................................
-	addEffect( id, fx ) {
-		const root = GSUI.getTemplate( "gsui-effects-fx" ),
-			name = root.querySelector( ".gsuiEffects-fx-name" ),
-			expand = root.querySelector( ".gsuiEffects-fx-expand" ),
-			toggle = root.querySelector( ".gsuiEffects-fx-toggle" ),
-			remove = root.querySelector( ".gsuiEffects-fx-remove" ),
-			content = root.querySelector( ".gsuiEffects-fx-content" ),
-			fxAsset = gsuiEffects.fxsMap.get( fx.type ),
-			uiFx = new fxAsset.cmp(),
-			html = Object.seal( {
-				uiFx,
-				root,
-				expand,
-				content,
-			} );
+	$addEffect( id, fx ) {
+		const root = GSUI.$getTemplate( "gsui-effects-fx" );
+		const name = root.querySelector( ".gsuiEffects-fx-name" );
+		const expand = root.querySelector( ".gsuiEffects-fx-expand" );
+		const remove = root.querySelector( ".gsuiEffects-fx-remove" );
+		const content = root.querySelector( ".gsuiEffects-fx-content" );
+		const fxAsset = gsuiEffects.#fxsMap[ fx.type ];
+		const uiFx = GSUI.$createElement( fxAsset.cmp );
+		const html = Object.seal( {
+			uiFx,
+			root,
+			expand,
+			content,
+		} );
 
-		expand.onclick = () => this.expandToggleEffect( id );
-		toggle.onclick = () => this._dispatch( "toggleEffect", id );
-		remove.onclick = () => this._dispatch( "removeEffect", id );
-		uiFx.askData = this.askData.bind( null, id, fx.type );
+		expand.onclick = () => this.$expandToggleEffect( id );
+		remove.onclick = () => this.#dispatch( "removeEffect", id );
+		if ( "$askData" in uiFx ) {
+			uiFx.$askData = this.$askData.bind( null, id, fx.type );
+		}
+		root.dataset.id =
 		uiFx.dataset.id = id;
 		root.dataset.type = fx.type;
+		GSUI.$setAttribute( uiFx, "timedivision", GSUI.$getAttribute( this, "timedivision" ) );
 		name.textContent = fxAsset.name;
 		content.append( uiFx );
-		this._fxsHtml.set( id, html );
-		this._elFxsList.append( root );
+		this.#fxsHtml.set( id, html );
+		this.append( root );
 	}
-	removeEffect( id ) {
-		this._fxsHtml.get( id ).root.remove();
-		this._fxsHtml.delete( id );
+	$removeEffect( id ) {
+		this.#fxsHtml.get( id ).root.remove();
+		this.#fxsHtml.delete( id );
 	}
-	changeEffect( id, prop, val ) {
+	$changeEffect( id, prop, val ) {
 		switch ( prop ) {
-			case "toggle": this._changeToggle( id, val ); break;
-			case "order": this._fxsHtml.get( id ).root.dataset.order = val; break;
+			case "toggle": this.#changeToggle( id, val ); break;
+			case "order": this.#fxsHtml.get( id ).root.dataset.order = val; break;
 		}
 	}
-	_changeToggle( id, b ) {
-		const html = this._fxsHtml.get( id );
+	$reorderEffects( effects ) {
+		gsuiReorder.listReorder( this, effects );
+	}
+
+	// .........................................................................
+	#changeToggle( id, b ) {
+		const html = this.#fxsHtml.get( id );
 
 		html.root.classList.toggle( "gsuiEffects-fx-enable", b );
-		html.uiFx.toggle( b );
+		html.uiFx.$toggle( b );
 	}
-	reorderEffects( effects ) {
-		gsuiReorder.listReorder( this._elFxsList, effects );
-	}
+	#onchangeAddSelect() {
+		const type = this.#elements.addSelect.value;
 
-	// events:
-	// .........................................................................
-	_onchangeAddSelect() {
-		const type = this._elAddSelect.value;
-
-		this._elAddSelect.blur();
-		this._elAddSelect.value = "";
-		this._dispatch( "addEffect", type );
-	}
-
-	// .........................................................................
-	_createOption( enable, fxId, fxName ) {
-		const opt = document.createElement( "option" );
-
-		opt.value = fxId;
-		opt.disabled = !enable;
-		opt.textContent = fxName;
-		return opt;
-	}
-	_fillSelect() {
-		const def = this._createOption( false, "", "-- Select an Fx" ),
-			options = [ def ];
-
-		gsuiEffects.fxsMap.forEach( ( fx, id ) => {
-			options.push( this._createOption( true, id, fx.name ) );
-		} );
-		this._elAddSelect.append( ...options );
+		this.#elements.addSelect.blur();
+		this.#elements.addSelect.value = "";
+		this.#dispatch( "addEffect", type );
 	}
 }
 
-gsuiEffects.fxsMap = new Map();
-
+Object.freeze( gsuiEffects );
 customElements.define( "gsui-effects", gsuiEffects );

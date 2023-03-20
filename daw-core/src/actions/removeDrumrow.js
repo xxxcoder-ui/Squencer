@@ -1,36 +1,36 @@
 "use strict";
 
-DAWCore.actions.removeDrumrow = ( rowId, get ) => {
-	const patName = DAWCore.common.getDrumrowName( rowId, get );
+DAWCoreActions.set( "removeDrumrow", ( daw, rowId ) => {
+	const patName = DAWCoreActionsCommon.getDrumrowName( daw, rowId );
 
 	return [
-		DAWCore.actions._removeDrumrow( {}, rowId, get ),
+		DAWCoreActions._removeDrumrow( {}, rowId, daw ),
 		[ "drumrows", "removeDrumrow", patName ],
 	];
-};
+} );
 
-DAWCore.actions._removeDrumrow = ( obj, rowId, get ) => {
-	const bPM = get.beatsPerMeasure(),
-		blocksEnt = Object.entries( get.blocks() ),
-		patternsEnt = Object.entries( get.patterns() ),
-		objDrums = {},
-		objBlocks = {},
-		objPatterns = {};
+DAWCoreActions._removeDrumrow = ( obj, rowId, daw ) => {
+	const bPM = daw.$getBeatsPerMeasure();
+	const blocksEnt = Object.entries( daw.$getBlocks() );
+	const patternsEnt = Object.entries( daw.$getPatterns() );
+	const objDrums = {};
+	const objBlocks = {};
+	const objPatterns = {};
 
 	obj.drumrows = obj.drumrows || {};
 	obj.drumrows[ rowId ] = undefined;
 	patternsEnt.forEach( ( [ patId, pat ] ) => {
 		if ( pat.type === "drums" ) {
-			const drumsObj = {},
-				drumWhenMax = Object.entries( get.drums( pat.drums ) )
-					.reduce( ( max, [ id, { row, when } ] ) => {
-						if ( row === rowId ) {
-							drumsObj[ id ] = undefined;
-						}
-						return row in obj.drumrows ? max : Math.max( max, when + .001 );
-					}, 0 );
+			const drumsObj = {};
+			const drumWhenMax = Object.entries( daw.$getDrums( pat.drums ) )
+				.reduce( ( max, [ id, { row, when } ] ) => {
+					if ( row === rowId ) {
+						drumsObj[ id ] = undefined;
+					}
+					return row in obj.drumrows ? max : Math.max( max, when + .001 );
+				}, 0 );
 
-			if ( GSUtils.isntEmpty( drumsObj ) ) {
+			if ( DAWCoreUtils.$isntEmpty( drumsObj ) ) {
 				const duration = Math.max( 1, Math.ceil( drumWhenMax / bPM ) ) * bPM;
 
 				objDrums[ pat.drums ] = drumsObj;
@@ -45,13 +45,13 @@ DAWCore.actions._removeDrumrow = ( obj, rowId, get ) => {
 			}
 		}
 	} );
-	GSUtils.addIfNotEmpty( obj, "drums", objDrums );
-	GSUtils.addIfNotEmpty( obj, "blocks", objBlocks );
-	GSUtils.addIfNotEmpty( obj, "patterns", objPatterns );
-	if ( GSUtils.isntEmpty( objBlocks ) ) {
-		const dur = DAWCore.common.calcNewDuration( obj, get );
+	DAWCoreUtils.$addIfNotEmpty( obj, "drums", objDrums );
+	DAWCoreUtils.$addIfNotEmpty( obj, "blocks", objBlocks );
+	DAWCoreUtils.$addIfNotEmpty( obj, "patterns", objPatterns );
+	if ( DAWCoreUtils.$isntEmpty( objBlocks ) ) {
+		const dur = DAWCoreActionsCommon.calcNewDuration( daw, obj );
 
-		if ( dur !== get.duration() ) {
+		if ( dur !== daw.$getDuration() ) {
 			obj.duration = dur;
 		}
 	}

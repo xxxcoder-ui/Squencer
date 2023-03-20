@@ -1,372 +1,343 @@
 "use strict";
 
-class gsuiWindow {
-	constructor( parent, id ) {
-		const root = GSUI.getTemplate( "gsui-window" );
+class gsuiWindow extends HTMLElement {
+	#wMin = 32;
+	#hMin = 32;
+	#show = false;
+	#parent = null;
+	#minimized = false;
+	#maximized = false;
+	#lowGraphics = false;
+	#restoreRect = Object.seal( { x: 0, y: 0, w: 32, h: 32 } );
+	#mousemovePos = Object.seal( { x: 0, y: 0 } );
+	#mousedownPos = Object.seal( { x: 0, y: 0 } );
+	#mousedownHeadHeight = 0;
+	#children = GSUI.$getTemplate( "gsui-window" );
+	#elements = GSUI.$findElements( this.#children, {
+		icon: ".gsuiWindow-icon",
+		wrap: ".gsuiWindow-wrap",
+		head: ".gsuiWindow-head",
+		title: ".gsuiWindow-title",
+		content: ".gsuiWindow-content",
+		handlers: ".gsuiWindow-handlers",
+		headBtns: ".gsuiWindow-headBtns",
+		headContent: ".gsuiWindow-headContent",
+	} );
 
-		this.id = id;
-		this.parent = parent;
-		this.rootElement = root;
-		this._elWrap = this._getElem( "wrap" );
-		this._elHandlers = this._getElem( "handlers" );
-		this._show =
-		this._minimized =
-		this._maximized = false;
-		this.zIndex = 0;
-		this.onresize =
-		this.onfocusin =
-		this.onresizing = null;
+	constructor() {
+		super();
 		this.rect = Object.seal( { x: 0, y: 0, w: 32, h: 32 } );
-		this._restoreRect = Object.seal( { x: 0, y: 0, w: 32, h: 32 } );
-		this._magnetPos = Object.seal( { x: 0, y: 0 } );
-		this._mousemovePos = Object.seal( { x: 0, y: 0 } );
-		this._mousedownPos = Object.seal( { x: 0, y: 0 } );
-		this._mousedownHeadHeight = 0;
-		this._wMin =
-		this._hMin = 32;
 		Object.seal( this );
 
-		root.dataset.windowId = id;
-		root.addEventListener( "focusin", parent._onfocusinWin.bind( parent, this ) );
-		this._getElem( "icon" ).ondblclick = this.close.bind( this );
-		this._getElem( "headBtns" ).onclick = this._onclickBtns.bind( this );
-		this._getElem( "head" ).onmousedown = this._onmousedownHead.bind( this );
-		this._getElem( "title" ).ondblclick =
-		this._getElem( "headContent" ).ondblclick = this._ondblclickTitle.bind( this );
-		this._elHandlers.onmousedown = this._onmousedownHandlers.bind( this );
-		this._setZIndex( 0 );
-		this.setTitle( id );
-		this.setPosition( 0, 0 );
-		this.setSize( 300, 150 );
+		this.#elements.icon.ondblclick = this.$close.bind( this );
+		this.#elements.headBtns.onclick = this.#onclickBtns.bind( this );
+		this.#elements.head.onmousedown = this.#onmousedownHead.bind( this );
+		this.#elements.title.ondblclick =
+		this.#elements.headContent.ondblclick = this.#ondblclickTitle.bind( this );
+		this.#elements.handlers.onmousedown = this.#onmousedownHandlers.bind( this );
 	}
 
-	open() { return this.openToggle( true ); }
-	close() { return this.openToggle( false ); }
-	openToggle( b ) {
-		if ( b !== this._show ) {
+	// .........................................................................
+	connectedCallback() {
+		if ( !this.firstChild ) {
+			GSUI.$setAttribute( this, "tabindex", 0 );
+			this.append( ...this.#children );
+			this.#children = null;
+		}
+	}
+	static get observedAttributes() {
+		return [ "x", "y", "w", "h", "wmin", "hmin", "lowgraphics", "icon", "title" ];
+	}
+	attributeChangedCallback( prop, prev, val ) {
+		switch ( prop ) {
+			case "y": this.style.top = `${ this.rect.y = +val }px`; break;
+			case "x": this.style.left = `${ this.rect.x = +val }px`; break;
+			case "w": this.style.width = `${ this.rect.w = +val }px`; break;
+			case "h": this.style.height = `${ this.rect.h = +val }px`; break;
+			case "wmin": this.#wMin = +val; break;
+			case "hmin": this.#hMin = +val; break;
+			case "lowgraphics": this.#lowGraphics = val !== null; break;
+			case "icon": this.#elements.icon.dataset.icon = val; break;
+			case "title": this.#elements.title.textContent = val; break;
+		}
+	}
+
+	// .........................................................................
+	$isOpen() { return this.#show; }
+	$open() { return this.$openToggle( true ); }
+	$close() { return this.$openToggle( false ); }
+	$openToggle( b ) {
+		if ( b !== this.#show ) {
 			if ( b ) {
-				this._show = true;
-				this._setClass( "show", true );
-				this.parent._open( this );
+				this.#show = true;
+				this.#setClass( "show", true );
+				this.#parent._open( this );
 			} else if ( !this.onclose || this.onclose() !== false ) {
-				this._show = false;
-				this._setClass( "show", false );
-				this.parent._close( this );
+				this.#show = false;
+				this.#setClass( "show", false );
+				GSUI.$emptyElement( this.#elements.content );
+				this.#parent._close( this );
 			}
+		} else if ( this.#minimized ) {
+			this.$restore();
 		}
 	}
 
-	setIdAttr( id ) {
-		this.rootElement.id = id;
+	// .........................................................................
+	$setParent( p ) {
+		this.#parent = p;
 	}
-	setTitleIcon( icon ) {
-		this._getElem( "icon" ).dataset.icon = icon;
+	$empty() {
+		GSUI.$emptyElement( this.#elements.content );
+		GSUI.$emptyElement( this.#elements.headContent );
 	}
-	empty() {
-		const cnt = this._getElem( "content" ),
-			headCnt = this._getElem( "headContent" );
-
-		while ( cnt.lastChild ) {
-			cnt.lastChild.remove();
-		}
-		while ( headCnt.lastChild ) {
-			headCnt.lastChild.remove();
-		}
+	$contentAppend( ...args ) {
+		this.#elements.content.append( ...args );
 	}
-	append( ...args ) {
-		this._getElem( "content" ).append( ...args );
-	}
-	headAppend( ...args ) {
-		this._getElem( "headContent" ).append( ...args );
+	$headAppend( ...args ) {
+		this.#elements.headContent.append( ...args );
 	}
 
-	focus() {
-		const root = this.rootElement;
+	// .........................................................................
+	$maximize() {
+		if ( !this.#maximized ) {
+			const st = this.style;
 
-		if ( !root.contains( document.activeElement ) ) {
-			setTimeout( root.focus.bind( root ), 50 );
-		}
-	}
-	maximize() {
-		if ( !this._maximized ) {
-			const st = this.rootElement.style;
-
-			this._restoreRect.x = this.rect.x;
-			this._restoreRect.y = this.rect.y;
-			this._restoreRect.w = this.rect.w;
-			if ( !this._minimized ) {
-				this._restoreRect.h = this.rect.h;
+			this.#restoreRect.x = this.rect.x;
+			this.#restoreRect.y = this.rect.y;
+			this.#restoreRect.w = this.rect.w;
+			if ( !this.#minimized ) {
+				this.#restoreRect.h = this.rect.h;
 			}
 			st.top = st.left = st.right = st.bottom = st.width = st.height = "";
-			this._setClass( "maximized", true );
-			this._setClass( "minimized", false );
-			this._maximized = true;
-			this._minimized = false;
-			this._callOnresize();
-			this.focus();
-			this.parent._winMaximized( this.id );
+			this.#setClass( "maximized", true );
+			this.#setClass( "minimized", false );
+			this.#maximized = true;
+			this.#minimized = false;
+			this.focus( { preventScroll: true } );
 		}
 	}
-	minimize() {
-		if ( !this._minimized ) {
-			const rcRestore = this._restoreRect;
+	$minimize() {
+		if ( !this.#minimized ) {
+			const rcRestore = this.#restoreRect;
 
-			if ( !this._maximized ) {
+			if ( !this.#maximized ) {
 				Object.assign( rcRestore, this.rect );
 			}
-			this._setClass( "minimized", true );
-			this._setClass( "maximized", false );
-			this._minimized = true;
-			this._maximized = false;
-			this.setSize( rcRestore.w, this._getHeadHeight(), "nocallback" );
-			this.setPosition( rcRestore.x, rcRestore.y );
-			this.parent._winRestored( this.id );
+			this.#setClass( "minimized", true );
+			this.#setClass( "maximized", false );
+			this.#minimized = true;
+			this.#maximized = false;
+			GSUI.$setAttribute( this, {
+				x: rcRestore.x,
+				y: rcRestore.y,
+				w: rcRestore.w,
+				h: this.#getHeadHeight(),
+			} );
+			GSUI.$emptyElement( this.#elements.content );
+			this.#parent._close( this );
 		}
 	}
-	restore() {
-		if ( this._minimized || this._maximized ) {
-			const rcRestore = this._restoreRect;
+	$restore() {
+		if ( this.#minimized || this.#maximized ) {
+			const rcRestore = this.#restoreRect;
+			const wasMinimized = this.#minimized;
 
-			this.focus();
-			this._setClass( "minimized", false );
-			this._setClass( "maximized", false );
-			this._minimized =
-			this._maximized = false;
-			this.setSize( rcRestore.w, rcRestore.h );
-			this.setPosition( rcRestore.x, rcRestore.y );
-			this.parent._winRestored( this.id );
+			this.focus( { preventScroll: true } );
+			this.#setClass( "minimized", false );
+			this.#setClass( "maximized", false );
+			this.#minimized =
+			this.#maximized = false;
+			GSUI.$setAttribute( this, {
+				x: rcRestore.x,
+				y: rcRestore.y,
+				w: rcRestore.w,
+				h: rcRestore.h,
+			} );
+			if ( wasMinimized ) {
+				this.#parent._open( this );
+			}
 		}
 	}
 
-	movable( b ) {
-		this._setClass( "movable", b );
-	}
-	setTitle( t ) {
-		this._getElem( "title" ).textContent = t;
-	}
-	setSize( w, h, nocb ) {
-		this.rect.w = w;
-		this.rect.h = h;
-		this.rootElement.style.width = `${ w }px`;
-		this.rootElement.style.height = `${ h }px`;
-		if ( nocb !== "nocallback" ) {
-			this._callOnresize();
+	// .........................................................................
+	#onclickBtns( e ) {
+		switch ( e.target.dataset.icon ) {
+			case "minimize": return this.$minimize();
+			case "restore": return this.$restore();
+			case "maximize": return this.$maximize();
+			case "close": return this.$close();
 		}
 	}
-	setMinSize( w, h ) {
-		this._wMin = w;
-		this._hMin = h;
-	}
-	setPosition( x, y ) {
-		this.rect.x = x;
-		this.rect.y = y;
-		this.rootElement.style.left = `${ x }px`;
-		this.rootElement.style.top = `${ y }px`;
-	}
-
-	// events:
-	_onclickBtns( e ) {
-		const act = e.target.dataset.icon;
-
-		if ( act ) {
-			this[ act ]();
-		}
-	}
-	_ondblclickTitle( e ) {
+	#ondblclickTitle( e ) {
 		if ( e.target === e.currentTarget ) {
-			this._maximized
-				? this.restore()
-				: this.maximize();
+			this.#maximized
+				? this.$restore()
+				: this.$maximize();
 		}
 	}
-	_onmousedownHead( e ) {
-		const clTar = e.target.classList,
-			clicked =
-				clTar.contains( "gsuiWindow-head" ) ||
-				clTar.contains( "gsuiWindow-title" ) ||
-				clTar.contains( "gsuiWindow-headContent" );
+	#onmousedownHead( e ) {
+		const clTar = e.target.classList;
+		const clicked =
+			clTar.contains( "gsuiWindow-head" ) ||
+			clTar.contains( "gsuiWindow-icon" ) ||
+			clTar.contains( "gsuiWindow-title" ) ||
+			clTar.contains( "gsuiWindow-headContent" );
 
-		if ( clicked && !this._maximized ) {
-			this._mousedownPos.x = e.clientX;
-			this._mousedownPos.y = e.clientY;
-			this._mousemovePos.x =
-			this._mousemovePos.y = 0;
-			this._setClass( "dragging", true );
-			this.parent._startMousemoving( "move",
-				this._onmousemoveHead.bind( this ),
-				this._onmouseupHead.bind( this ) );
+		if ( clicked && !this.#maximized ) {
+			this.#mousedownPos.x = e.clientX;
+			this.#mousedownPos.y = e.clientY;
+			this.#mousemovePos.x =
+			this.#mousemovePos.y = 0;
+			this.#setClass( "dragging", true );
+			this.#parent._startMousemoving( "move",
+				this.#onmousemoveHead.bind( this ),
+				this.#onmouseupHead.bind( this ) );
 		}
 	}
-	_onmousedownHandlers( e ) {
+	#onmousedownHandlers( e ) {
 		const dir = e.target.dataset.dir;
 
 		if ( dir ) {
-			this._mousedownPos.x = e.clientX;
-			this._mousedownPos.y = e.clientY;
-			this._mousemovePos.x =
-			this._mousemovePos.y = 0;
-			this._mousedownHeadHeight = this._getHeadHeight();
-			this._setClass( "dragging", true );
-			this.parent._startMousemoving( `${ dir }-resize`,
-				this._onmousemoveHandler.bind( this, dir ),
-				this._onmouseupHandler.bind( this, dir ) );
+			this.#mousedownPos.x = e.clientX;
+			this.#mousedownPos.y = e.clientY;
+			this.#mousemovePos.x =
+			this.#mousemovePos.y = 0;
+			this.#mousedownHeadHeight = this.#getHeadHeight();
+			this.#setClass( "dragging", true );
+			this.#parent._startMousemoving( `${ dir }-resize`,
+				this.#onmousemoveHandler.bind( this, dir ),
+				this.#onmouseupHandler.bind( this, dir ) );
 		}
 	}
-	_onmousemoveHead( e ) {
-		const x = e.clientX - this._mousedownPos.x,
-			y = e.clientY - this._mousedownPos.y,
-			mmPos = this._mousemovePos,
-			magnet = this._calcCSSmagnet( "nesw", x, y );
+	#onmousemoveHead( e ) {
+		const x = e.clientX - this.#mousedownPos.x;
+		const y = e.clientY - this.#mousedownPos.y;
+		const mmPos = this.#mousemovePos;
+		const magnet = this.#calcCSSmagnet( "nesw", x, y );
 
 		mmPos.x = x + magnet.x;
 		mmPos.y = y + magnet.y;
-		this._setCSSrelativeMove( this._elHandlers.style, mmPos.x, mmPos.y );
-		if ( !this.parent._lowGraphics ) {
-			this._setCSSrelativeMove( this._elWrap.style, mmPos.x, mmPos.y );
+		this.#setCSSrelativeMove( this.#elements.handlers.style, mmPos );
+		if ( !this.#lowGraphics ) {
+			this.#setCSSrelativeMove( this.#elements.wrap.style, mmPos );
 		}
 	}
-	_onmouseupHead() {
-		const { x, y } = this.rect,
-			m = this._mousemovePos;
+	#onmouseupHead() {
+		const { x, y } = this.rect;
+		const m = this.#mousemovePos;
 
-		this._setClass( "dragging", false );
-		this._resetCSSrelative( this._elWrap.style );
-		this._resetCSSrelative( this._elHandlers.style );
+		this.#setClass( "dragging", false );
+		this.#resetCSSrelative( this.#elements.wrap.style );
+		this.#resetCSSrelative( this.#elements.handlers.style );
 		if ( m.x || m.y ) {
-			this.setPosition( x + m.x, y + m.y );
-			this._restoreRect.x = this.rect.x;
-			this._restoreRect.y = this.rect.y;
+			GSUI.$setAttribute( this, {
+				x: x + m.x,
+				y: y + m.y,
+			} );
+			this.#restoreRect.x = this.rect.x;
+			this.#restoreRect.y = this.rect.y;
 		}
 	}
-	_onmousemoveHandler( dir, e ) {
-		const fnResize = this.onresizing,
-			x = e.clientX - this._mousedownPos.x,
-			y = e.clientY - this._mousedownPos.y,
-			mmPos = this._mousemovePos,
-			magnet = this._calcCSSmagnet( dir, x, y );
+	#onmousemoveHandler( dir, e ) {
+		const mmPos = this.#mousemovePos;
+		const x = e.clientX - this.#mousedownPos.x;
+		const y = e.clientY - this.#mousedownPos.y;
+		const magnet = this.#calcCSSmagnet( dir, x, y );
 
 		mmPos.x = x + magnet.x;
 		mmPos.y = y + magnet.y;
-		this._calcCSSrelativeResize( dir, mmPos );
-		this._setCSSrelativeResize( this._elHandlers.style, dir, mmPos );
-		if ( !this.parent._lowGraphics ) {
-			this._setCSSrelativeResize( this._elWrap.style, dir, mmPos );
-			if ( fnResize ) {
-				const w = this.rect.w,
-					h = this.rect.h - this._mousedownHeadHeight;
-
-				switch ( dir ) {
-					case "n":  fnResize( w,     h - y ); break;
-					case "w":  fnResize( w - x, h     ); break;
-					case "e":  fnResize( w + x, h     ); break;
-					case "s":  fnResize( w,     h + y ); break;
-					case "nw": fnResize( w - x, h - y ); break;
-					case "ne": fnResize( w + x, h - y ); break;
-					case "sw": fnResize( w - x, h + y ); break;
-					case "se": fnResize( w + x, h + y ); break;
-				}
-			}
+		this.#calcCSSrelativeResize( dir, mmPos );
+		this.#setCSSrelativeResize( this.#elements.handlers.style, dir, mmPos );
+		if ( !this.#lowGraphics ) {
+			this.#setCSSrelativeResize( this.#elements.wrap.style, dir, mmPos );
 		}
 	}
-	_onmouseupHandler( dir ) {
-		const { x, y, w, h } = this.rect,
-			m = this._mousemovePos;
+	#onmouseupHandler( dir ) {
+		const { x, y, w, h } = this.rect;
+		const m = this.#mousemovePos;
 
-		this._setClass( "dragging", false );
-		this._resetCSSrelative( this._elWrap.style );
-		this._resetCSSrelative( this._elHandlers.style );
+		this.#setClass( "dragging", false );
+		this.#resetCSSrelative( this.#elements.wrap.style );
+		this.#resetCSSrelative( this.#elements.handlers.style );
 		if ( m.x || m.y ) {
 			switch ( dir ) {
-				case "e" : this.setSize( w + m.x, h       ); break;
-				case "se": this.setSize( w + m.x, h + m.y ); break;
-				case "s" : this.setSize( w,       h + m.y ); break;
-				case "sw": this.setSize( w - m.x, h + m.y ); this.setPosition( x + m.x, y       ); break;
-				case "w" : this.setSize( w - m.x, h       ); this.setPosition( x + m.x, y       ); break;
-				case "nw": this.setSize( w - m.x, h - m.y ); this.setPosition( x + m.x, y + m.y ); break;
-				case "n" : this.setSize( w,       h - m.y ); this.setPosition( x,       y + m.y ); break;
-				case "ne": this.setSize( w + m.x, h - m.y ); this.setPosition( x,       y + m.y ); break;
+				case "e":  GSUI.$setAttribute( this, { w: w + m.x, h          } ); break;
+				case "se": GSUI.$setAttribute( this, { w: w + m.x, h: h + m.y } ); break;
+				case "s":  GSUI.$setAttribute( this, { w,          h: h + m.y } ); break;
+				case "sw": GSUI.$setAttribute( this, { w: w - m.x, h: h + m.y, x: x + m.x, y          } ); break;
+				case "w":  GSUI.$setAttribute( this, { w: w - m.x, h         , x: x + m.x, y          } ); break;
+				case "nw": GSUI.$setAttribute( this, { w: w - m.x, h: h - m.y, x: x + m.x, y: y + m.y } ); break;
+				case "n":  GSUI.$setAttribute( this, { w,          h: h - m.y, x,          y: y + m.y } ); break;
+				case "ne": GSUI.$setAttribute( this, { w: w + m.x, h: h - m.y, x,          y: y + m.y } ); break;
 			}
 		}
 	}
 
-	// private:
-	_getElem( c ) {
-		return this.rootElement.querySelector( `.gsuiWindow-${ c }` );
+	// .........................................................................
+	#setClass( clazz, b ) {
+		this.classList.toggle( `gsuiWindow-${ clazz }`, b );
 	}
-	_attachTo( parentElem ) {
-		parentElem.append( this.rootElement );
+	#getHeadHeight() {
+		return this.#elements.head.getBoundingClientRect().height;
 	}
-	_setClass( clazz, b ) {
-		this.rootElement.classList.toggle( `gsuiWindow-${ clazz }`, b );
-	}
-	_setZIndex( z ) {
-		this.zIndex =
-		this.rootElement.style.zIndex = z;
-	}
-	_callOnresize() {
-		if ( this.onresize ) {
-			const bcr = this._getElem( "content" ).getBoundingClientRect();
-
-			this.onresize( bcr.width, bcr.height );
-		}
-	}
-	_getHeadHeight() {
-		return this._getElem( "head" ).getBoundingClientRect().height;
-	}
-	_calcCSSmagnet( dir, x, y ) {
-		const rc = this.rect,
-			dirW = dir.includes( "w" ),
-			dirN = dir.includes( "n" ),
-			dirE = dir.includes( "e" ),
-			dirS = dir.includes( "s" ),
-			tx = dirW ? rc.x + x : rc.x,
-			ty = dirN ? rc.y + y : rc.y,
-			parBCR = this.parent.rootElement.getBoundingClientRect(),
-			wins = [
-				...this.parent._arrWindows,
-				{ _show: true, rect: { x: 0, y: 0, w: parBCR.width - 4, h: parBCR.height - 4 } }
-			];
-		let mgX = 0,
-			mgY = 0;
+	#calcCSSmagnet( dir, x, y ) {
+		const rc = this.rect;
+		const dirW = dir.includes( "w" );
+		const dirN = dir.includes( "n" );
+		const dirE = dir.includes( "e" );
+		const dirS = dir.includes( "s" );
+		const tx = dirW ? rc.x + x : rc.x;
+		const ty = dirN ? rc.y + y : rc.y;
+		const parBCR = this.#parent.getBoundingClientRect();
+		const wins = [
+			...this.#parent._arrWindows,
+			{
+				dataset: {},
+				rect: { x: 0, y: 0, w: parBCR.width, h: parBCR.height },
+			}
+		];
+		let mgX = 0;
+		let mgY = 0;
 
 		if ( dirE && dirW ) {
-			const mgXa = this._findClosestWin( wins, "x", tx + rc.w, 2, 0 ),
-				mgXb = this._findClosestWin( wins, "x", tx, 0, 2 );
+			const mgXa = this.#findClosestWin( wins, "x", tx + rc.w, 2, 0 );
+			const mgXb = this.#findClosestWin( wins, "x", tx, 0, 2 );
 
 			if ( mgXa || mgXb ) {
 				mgX = Math.abs( mgXa || Infinity ) < Math.abs( mgXb || Infinity ) ? mgXa : mgXb;
 			}
 		} else if ( dirE ) {
-			mgX = this._findClosestWin( wins, "x", tx + rc.w + x, 2, 0 );
+			mgX = this.#findClosestWin( wins, "x", tx + rc.w + x, 2, 0 );
 		} else {
-			mgX = this._findClosestWin( wins, "x", tx, 0, 2 );
+			mgX = this.#findClosestWin( wins, "x", tx, 0, 2 );
 		}
 		if ( dirS && dirN ) {
-			const mgYa = this._findClosestWin( wins, "y", ty + rc.h, 2, 0 ),
-				mgYb = this._findClosestWin( wins, "y", ty, 0, 2 );
+			const mgYa = this.#findClosestWin( wins, "y", ty + rc.h, 2, 0 );
+			const mgYb = this.#findClosestWin( wins, "y", ty, 0, 2 );
 
 			if ( mgYa || mgYb ) {
 				mgY = Math.abs( mgYa || Infinity ) < Math.abs( mgYb || Infinity ) ? mgYa : mgYb;
 			}
 		} else if ( dirS ) {
-			mgY = this._findClosestWin( wins, "y", ty + rc.h + y, 2, 0 );
+			mgY = this.#findClosestWin( wins, "y", ty + rc.h + y, 2, 0 );
 		} else {
-			mgY = this._findClosestWin( wins, "y", ty, 0, 2 );
+			mgY = this.#findClosestWin( wins, "y", ty, 0, 2 );
 		}
 		return { x: mgX, y: mgY };
 	}
-	_findClosestWin( wins, dir, value, brdL, brdR ) {
+	#findClosestWin( wins, dir, value, brdL, brdR ) {
 		let vAbsMin = Infinity;
 
 		return wins.reduce( ( vMin, win ) => {
-			if ( win._show && win.id !== this.id ) {
-				const wrc = win.rect,
-					wrcDir = wrc[ dir ],
-					v1 = wrcDir - brdL - value,
-					v2 = wrcDir + ( dir === "x" ? wrc.w : wrc.h ) + brdR - value,
-					v1Abs = Math.abs( v1 ),
-					v2Abs = Math.abs( v2 ),
-					abs = Math.min( v1Abs, v2Abs );
+			if ( win.dataset.id !== this.dataset.id && ( !win.$isOpen || win.$isOpen() ) ) {
+				const wrc = win.rect;
+				const wrcDir = wrc[ dir ];
+				const v1 = wrcDir - brdL - value;
+				const v2 = wrcDir + ( dir === "x" ? wrc.w : wrc.h ) + brdR - value;
+				const v1Abs = Math.abs( v1 );
+				const v2Abs = Math.abs( v2 );
+				const abs = Math.min( v1Abs, v2Abs );
 
 				if ( abs < 4 && abs < vAbsMin ) {
 					vAbsMin = abs;
@@ -376,39 +347,48 @@ class gsuiWindow {
 			return vMin;
 		}, 0 );
 	}
-	_resetCSSrelative( st ) {
+	#resetCSSrelative( st ) {
 		st.top =
 		st.left =
 		st.right =
 		st.bottom = 0;
 	}
-	_setCSSrelativeMove( st, x, y ) {
-		st.top    = `${  y }px`;
-		st.left   = `${  x }px`;
-		st.right  = `${ -x }px`;
-		st.bottom = `${ -y }px`;
+	#setCSSrelativeMove( st, p ) {
+		const top = parseFloat( this.style.top );
+		const left = parseFloat( this.style.left );
+		const minX = -left - this.clientWidth + ( 3 * 24 + 10 );
+		const minY = -top;
+		const maxX = this.parentNode.clientWidth - left - 24 - 10;
+		const maxY = this.parentNode.clientHeight - top - 24;
+
+		p.y = Math.max( minY, Math.min( p.y, maxY ) );
+		p.x = Math.max( minX, Math.min( p.x, maxX ) );
+		st.top    = `${  p.y }px`;
+		st.left   = `${  p.x }px`;
+		st.right  = `${ -p.x }px`;
+		st.bottom = `${ -p.y }px`;
 	}
-	_calcCSSrelativeResize( dir, mm ) {
-		const w = this.rect.w - this._wMin,
-			h = this.rect.h - this._mousedownHeadHeight - this._hMin;
+	#calcCSSrelativeResize( dir, mm ) {
+		const w = this.rect.w - this.#wMin;
+		const h = this.rect.h - this.#mousedownHeadHeight - this.#hMin;
 
 		switch ( dir ) {
-			case "n" : if ( h - mm.y < 0 ) { mm.y =  h; } break;
-			case "s" : if ( h + mm.y < 0 ) { mm.y = -h; } break;
-			case "w" :                                    if ( w - mm.x < 0 ) { mm.x =  w; } break;
-			case "e" :                                    if ( w + mm.x < 0 ) { mm.x = -w; } break;
+			case "n":  if ( h - mm.y < 0 ) { mm.y =  h; } break;
+			case "s":  if ( h + mm.y < 0 ) { mm.y = -h; } break;
+			case "w":                                     if ( w - mm.x < 0 ) { mm.x =  w; } break;
+			case "e":                                     if ( w + mm.x < 0 ) { mm.x = -w; } break;
 			case "nw": if ( h - mm.y < 0 ) { mm.y =  h; } if ( w - mm.x < 0 ) { mm.x =  w; } break;
 			case "ne": if ( h - mm.y < 0 ) { mm.y =  h; } if ( w + mm.x < 0 ) { mm.x = -w; } break;
 			case "sw": if ( h + mm.y < 0 ) { mm.y = -h; } if ( w - mm.x < 0 ) { mm.x =  w; } break;
 			case "se": if ( h + mm.y < 0 ) { mm.y = -h; } if ( w + mm.x < 0 ) { mm.x = -w; } break;
 		}
 	}
-	_setCSSrelativeResize( st, dir, mm ) {
+	#setCSSrelativeResize( st, dir, mm ) {
 		switch ( dir ) {
-			case "n" : st.top    = `${  mm.y }px`; break;
-			case "s" : st.bottom = `${ -mm.y }px`; break;
-			case "w" : st.left   = `${  mm.x }px`; break;
-			case "e" : st.right  = `${ -mm.x }px`; break;
+			case "n":  st.top    = `${  mm.y }px`; break;
+			case "s":  st.bottom = `${ -mm.y }px`; break;
+			case "w":  st.left   = `${  mm.x }px`; break;
+			case "e":  st.right  = `${ -mm.x }px`; break;
 			case "nw": st.left   = `${  mm.x }px`; st.top    = `${  mm.y }px`; break;
 			case "ne": st.right  = `${ -mm.x }px`; st.top    = `${  mm.y }px`; break;
 			case "sw": st.left   = `${  mm.x }px`; st.bottom = `${ -mm.y }px`; break;
@@ -418,3 +398,4 @@ class gsuiWindow {
 }
 
 Object.freeze( gsuiWindow );
+customElements.define( "gsui-window", gsuiWindow );

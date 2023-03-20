@@ -1,55 +1,58 @@
 "use strict";
 
 class gswaDrumsScheduler {
-	constructor( ctx ) {
-		const sch = new gswaScheduler();
+	scheduler = new gswaScheduler();
+	#drumrows = null;
+	#startedDrums = new Map();
 
-		this.scheduler = sch;
-		this._drumrows = null;
-		this._startedDrums = new Map();
+	constructor() {
 		Object.seal( this );
 
-		sch.currentTime = () => ctx.currentTime;
-		sch.ondatastart = this._onstartDrum.bind( this );
-		sch.ondatastop = this._onstopDrum.bind( this );
-		sch.ondatapropchange = this._onchangeDrum.bind( this );
-		sch.enableStreaming( !( ctx instanceof OfflineAudioContext ) );
+		this.scheduler.ondatastart = this.#onstartDrum.bind( this );
+		this.scheduler.ondatastop = this.#onstopDrum.bind( this );
+		this.scheduler.ondatapropchange = this.#onchangeDrum.bind( this );
 	}
 
-	setDrumrows( drumrows ) {
-		this._drumrows = drumrows;
+	// .........................................................................
+	$setContext( ctx ) {
+		this.scheduler.currentTime = () => ctx.currentTime;
+		this.scheduler.$enableStreaming( !( ctx instanceof OfflineAudioContext ) );
 	}
-	change( obj ) {
-		const cpy = GSUtils.deepCopy( obj );
+	$setDrumrows( drumrows ) {
+		this.#drumrows = drumrows;
+	}
+	$change( obj ) {
+		const cpy = DAWCoreUtils.$deepCopy( obj );
 
 		Object.values( cpy ).forEach( drum => {
 			if ( drum && "when" in drum ) { // 1.
-				drum.duration = this._drumrows.getPatternDurationByRowId( drum.row );
+				drum.duration = this.#drumrows.$getPatternDurationByRowId( drum.row );
 			}
 		} );
-		this.scheduler.change( cpy );
+		this.scheduler.$change( cpy );
 	}
-	start( when, off, dur ) {
-		this.scheduler.start( when, off, dur );
+	$start( when, off, dur ) {
+		this.scheduler.$start( when, off, dur );
 	}
-	stop() {
-		this.scheduler.stop();
+	$stop() {
+		this.scheduler.$stop();
 	}
 
-	_onstartDrum( startedId, [ [ , drum ] ], when, off, _dur ) {
+	// .........................................................................
+	#onstartDrum( startedId, [ [ , drum ] ], when, off ) {
 		if ( "gain" in drum ) {
-			this._startedDrums.set( startedId,
-				this._drumrows.startDrum( drum, when, off, drum.duration ) );
+			this.#startedDrums.set( startedId,
+				this.#drumrows.$startDrum( drum, when, off, drum.duration ) );
 		} else {
-			this._drumrows.startDrumcut( drum, when );
+			this.#drumrows.$startDrumcut( drum, when );
 		}
 	}
-	_onstopDrum( startedId ) {
-		this._drumrows.stopDrum( this._startedDrums.get( startedId ) );
-		this._startedDrums.delete( startedId );
+	#onstopDrum( startedId ) {
+		this.#drumrows.$stopDrum( this.#startedDrums.get( startedId ) );
+		this.#startedDrums.delete( startedId );
 	}
-	_onchangeDrum( startedId, prop, val ) {
-		this._drumrows.changeDrumProp( startedId, prop, val );
+	#onchangeDrum( startedId, prop, val ) {
+		this.#drumrows.$changeDrumProp( startedId, prop, val );
 	}
 }
 

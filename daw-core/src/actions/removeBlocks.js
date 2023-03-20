@@ -1,21 +1,21 @@
 "use strict";
 
-DAWCore.actions.removeBlocks = ( blcIds, get ) => {
+DAWCoreActions.set( "removeBlocks", ( daw, blcIds ) => {
 	const blocks = blcIds.reduce( ( obj, id ) => {
-			obj[ id ] = undefined;
-			return obj;
-		}, {} ),
-		obj = { blocks },
-		dur = DAWCore.common.calcNewDuration( obj, get );
+		obj[ id ] = undefined;
+		return obj;
+	}, {} );
+	const obj = { blocks };
+	const dur = DAWCoreActionsCommon.calcNewDuration( daw, obj );
 	let selLen = 0;
 
-	Object.entries( get.blocks() ).forEach( ( [ id, blc ] ) => {
+	Object.entries( daw.$getBlocks() ).forEach( ( [ id, blc ] ) => {
 		if ( blc.selected && !( id in blocks ) ) {
 			++selLen;
 			blocks[ id ] = { selected: false };
 		}
 	} );
-	if ( dur !== get.duration() ) {
+	if ( dur !== daw.$getDuration() ) {
 		obj.duration = dur;
 	}
 	return [
@@ -24,4 +24,4 @@ DAWCore.actions.removeBlocks = ( blcIds, get ) => {
 			? [ "blocks", "removeBlocks", blcIds.length ]
 			: [ "blocks", "unselectAllBlocks", selLen ],
 	];
-};
+} );

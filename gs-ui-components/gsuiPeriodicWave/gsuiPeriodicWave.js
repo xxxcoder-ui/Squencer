@@ -1,11 +1,13 @@
 "use strict";
 
 class gsuiPeriodicWave extends HTMLElement {
+	#svg = GSUI.$createElementSVG( "svg", { preserveAspectRatio: "none" },
+		GSUI.$createElementSVG( "polyline" )
+	);
+	static cache = {};
+
 	constructor() {
 		super();
-		this._svg = GSUI.createElementNS( "svg", { preserveAspectRatio: "none" },
-			this._polyline = GSUI.createElementNS( "polyline" )
-		);
 		this.type = "";
 		this.delay =
 		this.attack = 0;
@@ -20,62 +22,59 @@ class gsuiPeriodicWave extends HTMLElement {
 	// .........................................................................
 	connectedCallback() {
 		if ( !this.firstChild ) {
-			this.classList.add( "gsuiPeriodicWave" );
-			this.append( this._svg );
+			this.append( this.#svg );
 			this.resized();
 		}
 	}
 
 	// .........................................................................
 	resized() {
-		const bcr = this.getBoundingClientRect(),
-			w = ~~bcr.width,
-			h = ~~bcr.height;
+		const bcr = this.getBoundingClientRect();
+		const w = ~~bcr.width;
+		const h = ~~bcr.height;
 
 		this.width = w;
 		this.height = h;
-		this._svg.setAttribute( "viewBox", `0 0 ${ w } ${ h }` );
-		if ( this.type ) {
-			this.draw();
-		}
+		GSUI.$setAttribute( this.#svg, "viewBox", `0 0 ${ w } ${ h }` );
+		this.draw();
 	}
 	draw() {
 		if ( this.firstChild && this.type ) {
 			const wave = gsuiPeriodicWave.cache[ this.type ];
 
 			if ( wave ) {
-				this._draw( wave );
+				this.#draw( wave );
 			} else {
 				console.error( `gsuiPeriodicWave: the wave "${ this.type }" is undefined...` );
 			}
 		}
 	}
-	_draw( wave ) {
-		const dur = this.duration,
-			w = this.width,
-			h2 = this.height / 2,
-			hz = this.frequency * dur,
-			amp = -this.amplitude * .95 * h2,
-			delX = w / dur * this.delay,
-			attX = w / dur * this.attack,
-			pts = new Float32Array( w * 2 );
+	#draw( wave ) {
+		const dur = this.duration;
+		const w = this.width;
+		const h2 = this.height / 2;
+		const hz = this.frequency * dur;
+		const amp = -this.amplitude * .95 * h2;
+		const delX = w / dur * this.delay;
+		const attX = w / dur * this.attack;
+		const pts = new Float32Array( w * 2 );
 
 		for ( let x = 0; x < w; ++x ) {
 			let y = h2;
 
 			if ( x > delX ) {
-				const xd = x - delX,
-					att = xd < attX ? xd / attX : 1;
+				const xd = x - delX;
+				const att = xd < attX ? xd / attX : 1;
 
 				y += wave[ xd / w * 256 * hz % 256 | 0 ] * amp * att;
 			}
 			pts[ x * 2 ] = x;
 			pts[ x * 2 + 1 ] = y;
 		}
-		this._polyline.setAttribute( "points", pts.join( " " ) );
+		GSUI.$setAttribute( this.#svg.firstChild, "points", pts.join( " " ) );
 	}
 
-	// static:
+	// .........................................................................
 	static getXFromWave( a, b, t ) {
 		return a.reduce( ( val, ak, k ) => {
 			const tmp = Math.PI * 2 * k * t;
@@ -84,22 +83,17 @@ class gsuiPeriodicWave extends HTMLElement {
 		}, 0 );
 	}
 	static addWave( name, real, imag ) {
-		const cache = gsuiPeriodicWave.cache;
-
-		if ( !cache[ name ] ) {
-			const arr = [],
-				fn = gsuiPeriodicWave.getXFromWave.bind( null, real, imag );
+		if ( !gsuiPeriodicWave.cache[ name ] ) {
+			const arr = [];
+			const fn = gsuiPeriodicWave.getXFromWave.bind( null, real, imag );
 
 			for ( let x = 0; x < 256; ++x ) {
 				arr.push( fn( x / 256 ) );
 			}
-			cache[ name ] = arr;
+			gsuiPeriodicWave.cache[ name ] = arr;
 		}
 	}
 }
 
-customElements.define( "gsui-periodicwave", gsuiPeriodicWave );
-
-gsuiPeriodicWave.cache = {};
-
 Object.freeze( gsuiPeriodicWave );
+customElements.define( "gsui-periodicwave", gsuiPeriodicWave );

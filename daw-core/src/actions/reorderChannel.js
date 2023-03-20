@@ -1,8 +1,8 @@
 "use strict";
 
-DAWCore.actions.reorderChannel = ( chanId, channels, get ) => {
+DAWCoreActions.set( "reorderChannel", ( daw, chanId, channels ) => {
 	return [
 		{ channels },
-		[ "channels", "reorderChannel", get.channel( chanId ).name ],
+		[ "channels", "reorderChannel", daw.$getChannel( chanId ).name ],
 	];
-};
+} );

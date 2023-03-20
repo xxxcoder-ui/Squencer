@@ -1,8 +1,8 @@
 "use strict";
 
-DAWCore.actions.changeChannel = ( id, prop, val, get ) => {
+DAWCoreActions.set( "changeChannel", ( daw, id, prop, val ) => {
 	return [
 		{ channels: { [ id ]: { [ prop ]: val } } },
-		[ "channels", "changeChannel", get.channel( id ).name, prop, val ],
+		[ "channels", "changeChannel", daw.$getChannel( id ).name, prop, val ],
 	];
-};
+} );

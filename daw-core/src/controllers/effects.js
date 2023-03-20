@@ -1,45 +1,51 @@
 "use strict";
 
-DAWCore.controllers.effects = class {
+DAWCoreControllers.effects = class {
+	on = null;
+	data = {};
+	#effectsCrud = DAWCoreUtils.$createUpdateDelete.bind( null, this.data,
+		this.#addEffect.bind( this ),
+		this.#updateEffect.bind( this ),
+		this.#deleteEffect.bind( this ) );
+	values = Object.seal( {
+		destFilter: null,
+		resetting: false,
+	} );
+
 	constructor( fns ) {
-		this.data = {};
-		this.on = GSUtils.mapCallbacks( [
+		this.on = DAWCoreUtils.$mapCallbacks( [
 			"changeBPM",
+			"changeTimedivision",
 			"addEffect",
 			"removeEffect",
 			"changeEffect",
 			"connectEffectTo",
 			"changeEffectData",
 		], fns.dataCallbacks );
-		this.values = Object.seal( {
-			destFilter: null,
-			resetting: false,
-		} );
-		this._effectsCrud = GSUtils.createUpdateDelete.bind( null, this.data,
-			this._addEffect.bind( this ),
-			this._updateEffect.bind( this ),
-			this._deleteEffect.bind( this ) );
 		Object.freeze( this );
 	}
 
 	// .........................................................................
 	clear() {
-		Object.keys( this.data ).forEach( id => this._deleteEffect( id ) );
+		Object.keys( this.data ).forEach( id => this.#deleteEffect( id ) );
 	}
 	reset() {
 		const ent = Object.entries( this.data );
 
 		this.values.resetting = true;
-		ent.forEach( kv => this._deleteEffect( kv[ 0 ] ) );
+		ent.forEach( kv => this.#deleteEffect( kv[ 0 ] ) );
 		this.values.resetting = false;
-		ent.forEach( kv => this._addEffect( kv[ 0 ], kv[ 1 ] ) );
+		ent.forEach( kv => this.#addEffect( kv[ 0 ], kv[ 1 ] ) );
 	}
 	change( obj ) {
 		if ( obj.bpm ) {
 			this.on.changeBPM( obj.bpm );
 		}
+		if ( obj.timedivision ) {
+			this.on.changeTimedivision( obj.timedivision );
+		}
 		if ( obj.effects ) {
-			this._effectsCrud( obj.effects );
+			this.#effectsCrud( obj.effects );
 		}
 	}
 	setDestFilter( dest ) {
@@ -49,54 +55,54 @@ DAWCore.controllers.effects = class {
 			this.values.destFilter = dest;
 			Object.entries( this.data ).forEach( ( [ id, fx ] ) => {
 				if ( fx.dest === old ) {
-					this.__deleteEffect( id );
+					this.#deleteEffect2( id );
 				} else if ( fx.dest === dest ) {
-					this.__effectAdd( id, fx );
+					this.#addEffect2( id, fx );
 				}
 			} );
 		}
 	}
 
 	// .........................................................................
-	_addEffect( id, obj, diffObj ) {
-		const fx = Object.seal( GSUtils.jsonCopy( obj ) );
+	#addEffect( id, obj, diffObj ) {
+		const fx = Object.seal( DAWCoreUtils.$jsonCopy( obj ) );
 
 		this.data[ id ] = fx;
-		if ( this._fxDestOk( fx ) ) {
-			this.__effectAdd( id, fx, diffObj );
+		if ( this.#fxDestOk( fx ) ) {
+			this.#addEffect2( id, fx, diffObj );
 		}
 	}
-	__effectAdd( id, fx, diffObj ) {
+	#addEffect2( id, fx, diffObj ) {
 		this.on.addEffect( id, fx );
 		this.on.changeEffect( id, "toggle", fx.toggle );
 		this.on.changeEffect( id, "order", fx.order );
 		this.on.changeEffectData( id, fx.data );
-		if ( !GSUtils.isNoop( this.on.connectEffectTo ) ) {
-			const [ prevId, nextId ] = this._findSiblingFxIds( id, diffObj );
+		if ( !DAWCoreUtils.$isNoop( this.on.connectEffectTo ) ) {
+			const [ prevId, nextId ] = this.#findSiblingFxIds( id, diffObj );
 
 			this.on.connectEffectTo( fx.dest, id, nextId );
 			this.on.connectEffectTo( fx.dest, prevId, id );
 		}
 	}
-	_deleteEffect( id, diffObj ) {
+	#deleteEffect( id, diffObj ) {
 		const fx = this.data[ id ];
 
-		if ( this._fxDestOk( fx ) ) {
-			this.__deleteEffect( id, diffObj );
+		if ( this.#fxDestOk( fx ) ) {
+			this.#deleteEffect2( id, diffObj );
 		}
 		delete this.data[ id ];
 	}
-	__deleteEffect( id, diffObj ) {
-		if ( !this.values.resetting && !GSUtils.isNoop( this.on.connectEffectTo ) ) {
-			const [ prevId, nextId ] = this._findSiblingFxIds( id, diffObj );
+	#deleteEffect2( id, diffObj ) {
+		if ( !this.values.resetting && !DAWCoreUtils.$isNoop( this.on.connectEffectTo ) ) {
+			const [ prevId, nextId ] = this.#findSiblingFxIds( id, diffObj );
 
 			this.on.connectEffectTo( this.data[ id ].dest, prevId, nextId );
 		}
 		this.on.removeEffect( id );
 	}
-	_updateEffect( id, fx, diffObj ) {
-		const dataObj = this.data[ id ],
-			destOk = this._fxDestOk( dataObj );
+	#updateEffect( id, fx, diffObj ) {
+		const dataObj = this.data[ id ];
+		const destOk = this.#fxDestOk( dataObj );
 
 		if ( "toggle" in fx ) {
 			dataObj.toggle = fx.toggle;
@@ -105,22 +111,22 @@ DAWCore.controllers.effects = class {
 			}
 		}
 		if ( "data" in fx ) {
-			GSUtils.diffAssign( dataObj.data, fx.data );
+			DAWCoreUtils.$diffAssign( dataObj.data, fx.data );
 			if ( destOk ) {
 				this.on.changeEffectData( id, fx.data );
 			}
 		}
 		if ( "order" in fx ) {
-			if ( destOk && !GSUtils.isNoop( this.on.connectEffectTo ) ) {
-				const [ prevId, nextId ] = this._findSiblingFxIds( id, diffObj );
+			if ( destOk && !DAWCoreUtils.$isNoop( this.on.connectEffectTo ) ) {
+				const [ prevId, nextId ] = this.#findSiblingFxIds( id, diffObj );
 
 				this.on.connectEffectTo( dataObj.dest, prevId, nextId );
 			}
 			dataObj.order = fx.order;
 			if ( destOk ) {
 				this.on.changeEffect( id, "order", fx.order );
-				if ( !GSUtils.isNoop( this.on.connectEffectTo ) ) {
-					const [ prevId, nextId ] = this._findSiblingFxIds( id, diffObj );
+				if ( !DAWCoreUtils.$isNoop( this.on.connectEffectTo ) ) {
+					const [ prevId, nextId ] = this.#findSiblingFxIds( id, diffObj );
 
 					this.on.connectEffectTo( dataObj.dest, prevId, id );
 					this.on.connectEffectTo( dataObj.dest, id, nextId );
@@ -130,15 +136,15 @@ DAWCore.controllers.effects = class {
 	}
 
 	// .........................................................................
-	_fxDestOk( fx ) {
+	#fxDestOk( fx ) {
 		return !this.values.destFilter || fx.dest === this.values.destFilter;
 	}
-	_findSiblingFxIds( id, diffObj = {} ) {
+	#findSiblingFxIds( id, diffObj = {} ) {
 		const { dest, order } = this.data[ id ];
-		let prevId = null,
-			nextId = null,
-			prevOrder = -Infinity,
-			nextOrder = Infinity;
+		let prevId = null;
+		let nextId = null;
+		let prevOrder = -Infinity;
+		let nextOrder = Infinity;
 
 		Object.entries( this.data ).forEach( ( [ fxId, fx ] ) => {
 			if ( fxId !== id && fx.dest === dest ) {
@@ -158,4 +164,4 @@ DAWCore.controllers.effects = class {
 	}
 };
 
-Object.freeze( DAWCore.controllers.effects );
+Object.freeze( DAWCoreControllers.effects );

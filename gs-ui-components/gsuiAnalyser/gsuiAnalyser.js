@@ -1,53 +1,61 @@
 "use strict";
 
-class gsuiAnalyser {
+class gsuiAnalyser extends HTMLElement {
+	#cnv = GSUI.$createElement( "canvas" );
+	#ctx = this.#cnv.getContext( "2d" );
+
 	constructor() {
-		this.rootElement =
-		this._ctx = null;
+		super();
 		Object.seal( this );
 	}
-	setCanvas( canvas ) {
-		this.rootElement = canvas;
-		this._ctx = canvas.getContext( "2d" );
+
+	// .........................................................................
+	connectedCallback() {
+		if ( !this.firstChild ) {
+			this.append( this.#cnv );
+		}
 	}
+
+	// .........................................................................
 	clear() {
-		this._ctx.clearRect( 0, 0, this.rootElement.width, this.rootElement.height );
+		this.#ctx.clearRect( 0, 0, this.#cnv.width, this.#cnv.height );
 	}
 	setResolution( w, h ) {
-		const cnv = this.rootElement,
-			img = this._ctx.getImageData( 0, 0, cnv.width, cnv.height );
+		const img = this.#ctx.getImageData( 0, 0, this.#cnv.width, this.#cnv.height );
 
-		cnv.width = w;
-		cnv.height = h;
-		this._ctx.putImageData( img, 0, 0 );
+		this.#cnv.width = w;
+		this.#cnv.height = h;
+		this.#ctx.putImageData( img, 0, 0 );
 	}
 	draw( ldata, rdata ) {
-		this._moveImage();
-		this._draw( ldata, rdata );
+		gsuiAnalyser.#moveImage( this.#ctx );
+		gsuiAnalyser.#draw( this.#ctx, ldata, rdata );
 	}
 
-	// private:
-	_moveImage() {
-		const cnv = this.rootElement,
-			img = this._ctx.getImageData( 0, 0, cnv.width, cnv.height - 1 );
-
-		this._ctx.putImageData( img, 0, 1 );
+	// .........................................................................
+	static #moveImage( ctx ) {
+		ctx.putImageData( ctx.getImageData( 0, 0, ctx.canvas.width, ctx.canvas.height - 1 ), 0, 1 );
 	}
-	_draw( ldata, rdata ) {
-		const ctx = this._ctx,
-			w2 = ctx.canvas.width / 2,
-			len = Math.min( w2, ldata.length ),
-			imgL = gsuiSpectrum.draw( ctx, ldata, w2 ),
-			imgR = gsuiSpectrum.draw( ctx, rdata, w2 ),
-			imgLflip = ctx.createImageData( len, 1 );
+	static #draw( ctx, ldata, rdata ) {
+		const w2 = ctx.canvas.width / 2;
+		const len = Math.min( w2, ldata.length );
+		const imgL = gsuiSpectrum.draw( ctx, ldata, w2 );
+		const imgR = gsuiSpectrum.draw( ctx, rdata, w2 );
+		const imgLflip = ctx.createImageData( len, 1 );
 
 		for ( let x = 0, x2 = len - 1; x < len; ++x, --x2 ) {
-			imgLflip.data[ x * 4     ] = imgL.data[ x2 * 4     ];
-			imgLflip.data[ x * 4 + 1 ] = imgL.data[ x2 * 4 + 1 ];
-			imgLflip.data[ x * 4 + 2 ] = imgL.data[ x2 * 4 + 2 ];
-			imgLflip.data[ x * 4 + 3 ] = imgL.data[ x2 * 4 + 3 ];
+			gsuiAnalyser.#drawPx( imgLflip.data, imgL.data, x * 4, x2 * 4 );
 		}
 		ctx.putImageData( imgLflip, 0, 0 );
 		ctx.putImageData( imgR, w2, 0 );
 	}
+	static #drawPx( imgLflip, imgL, x, x2 ) {
+		imgLflip[ x     ] = imgL[ x2     ];
+		imgLflip[ x + 1 ] = imgL[ x2 + 1 ];
+		imgLflip[ x + 2 ] = imgL[ x2 + 2 ];
+		imgLflip[ x + 3 ] = imgL[ x2 + 3 ];
+	}
 }
+
+Object.freeze( gsuiAnalyser );
+customElements.define( "gsui-analyser", gsuiAnalyser );

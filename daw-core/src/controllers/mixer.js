@@ -1,9 +1,19 @@
 "use strict";
 
-DAWCore.controllers.mixer = class {
+DAWCoreControllers.mixer = class {
+	on = null;
+	data = Object.freeze( { channels: {}, effects: {} } );
+	#chansCrud = DAWCoreUtils.$createUpdateDelete.bind( null, this.data.channels,
+		this.#addChannel.bind( this ),
+		this.#updateChannel.bind( this ),
+		this.#deleteChannel.bind( this ) );
+	#effectsCrud = DAWCoreUtils.$createUpdateDelete.bind( null, this.data.effects,
+		this.#addEffect.bind( this ),
+		this.#updateEffect.bind( this ),
+		this.#deleteEffect.bind( this ) );
+
 	constructor( fns ) {
-		this.data = Object.freeze( { channels: {} } );
-		this.on = GSUtils.mapCallbacks( [
+		this.on = DAWCoreUtils.$mapCallbacks( [
 			"addChannel",
 			"removeChannel",
 			"toggleChannel",
@@ -12,56 +22,76 @@ DAWCore.controllers.mixer = class {
 			"redirectChannel",
 			"changePanChannel",
 			"changeGainChannel",
+			"addEffect",
+			"updateEffect",
+			"removeEffect",
 		], fns.dataCallbacks );
-		this._chansCrud = GSUtils.createUpdateDelete.bind( null, this.data.channels,
-			this._addChannel.bind( this ),
-			this._updateChannel.bind( this ),
-			this._deleteChannel.bind( this ) );
 		Object.freeze( this );
 	}
 
 	// .........................................................................
 	clear() {
+		Object.keys( this.data.effects ).forEach( id => this.#deleteEffect( id ) );
 		Object.keys( this.data.channels ).forEach( id => {
 			if ( id !== "main" ) {
-				this._deleteChannel( id );
+				this.#deleteChannel( id );
 			}
 		} );
 	}
 	recall() {
 		const ent = Object.entries( this.data.channels );
 
-		ent.forEach( kv => this._deleteChannel( kv[ 0 ] ) );
-		ent.forEach( kv => this._addChannel( kv[ 0 ], kv[ 1 ] ) );
+		ent.forEach( kv => this.#deleteChannel( kv[ 0 ] ) );
+		ent.forEach( kv => this.#addChannel( kv[ 0 ], kv[ 1 ] ) );
 	}
-	change( { channels } ) {
-		this._chansCrud( channels );
+	change( obj ) {
+		this.#chansCrud( obj.channels );
+		this.#effectsCrud( obj.effects );
 	}
 
 	// .........................................................................
-	_addChannel( id, obj ) {
+	#addChannel( id, obj ) {
 		this.data.channels[ id ] = {};
 		this.on.addChannel( id, obj );
-		this._updateChannel( id, obj );
+		this.#updateChannel( id, obj );
 	}
-	_deleteChannel( id ) {
+	#deleteChannel( id ) {
 		delete this.data.channels[ id ];
 		this.on.removeChannel( id );
 	}
-	_updateChannel( id, obj ) {
+	#updateChannel( id, obj ) {
 		Object.assign( this.data.channels[ id ], obj );
-		this.__updateChannel( id, obj.name, this.on.renameChannel );
-		this.__updateChannel( id, obj.order, this.on.reorderChannel );
-		this.__updateChannel( id, obj.toggle, this.on.toggleChannel );
-		this.__updateChannel( id, obj.dest, this.on.redirectChannel );
-		this.__updateChannel( id, obj.pan, this.on.changePanChannel );
-		this.__updateChannel( id, obj.gain, this.on.changeGainChannel );
+		this.#updateChannel2( id, obj.name, this.on.renameChannel );
+		this.#updateChannel2( id, obj.order, this.on.reorderChannel );
+		this.#updateChannel2( id, obj.toggle, this.on.toggleChannel );
+		this.#updateChannel2( id, obj.dest, this.on.redirectChannel );
+		this.#updateChannel2( id, obj.pan, this.on.changePanChannel );
+		this.#updateChannel2( id, obj.gain, this.on.changeGainChannel );
 	}
-	__updateChannel( id, val, fn ) {
+	#updateChannel2( id, val, fn ) {
 		if ( val !== undefined ) {
 			fn( id, val );
 		}
 	}
+
+	// .........................................................................
+	#addEffect( id, obj ) {
+		this.data.effects[ id ] = {};
+		this.on.addEffect( obj.dest, id, obj );
+		this.#updateEffect( id, obj );
+	}
+	#deleteEffect( id ) {
+		const dest = this.data.effects[ id ].dest;
+
+		delete this.data.effects[ id ];
+		if ( dest in this.data.channels ) {
+			this.on.removeEffect( dest, id );
+		}
+	}
+	#updateEffect( id, obj ) {
+		DAWCoreUtils.$deepAssign( this.data.effects[ id ], obj );
+		this.on.updateEffect( this.data.effects[ id ].dest, id, obj );
+	}
 };
 
-Object.freeze( DAWCore.controllers.mixer );
+Object.freeze( DAWCoreControllers.mixer );
