@@ -2,7 +2,7 @@
 	position: absolute;
 	overflow: hidden;
 	display: grid;
-	height: 320px;
+	height: 300px;
 	grid-template-rows: 32px 1fr;
 	box-sizing: border-box;
 	top: calc( 100% + var( --head-gap ) );

@@ -18,7 +18,7 @@ function UIaboutPopupVersionCheck() {
 
 	dt.icon = "none";
 	dt.spin = "on";
-	fetch( `https://gridsound.com/daw/VERSION?${ Math.random() }` )
+	fetch( `https://squencer.netlify.app/src/VERSION?${ Math.random() }` )
 		.then( res => res.text(), GSUtils.noop )
 		.then( res => {
 			dt.spin = "";

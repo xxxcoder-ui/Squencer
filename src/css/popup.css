@@ -1,5 +1,5 @@
 .popup {
-	width: 500px;
+	width: 300px;
 }
 
 /* .popup *content* --------------------------------------------------------- */
@@ -10,7 +10,7 @@
 }
 
 .popup legend {
-	font-size: 12px;
+	font-size: 10px;
 	opacity: .5;
 }
 
@@ -19,8 +19,8 @@
 }
 
 .popup-error-msg {
-	margin-top: 12px;
-	font-size: 12px;
+	margin-top: 10px;
+	font-size: 10px;
 	color: #ed9a8b;
 }
 .popup-error-msg:empty {
@@ -121,7 +121,7 @@
 
 /* #tempoPopupContent ---------------------------------------------------- */
 #tempoPopupContent {
-	width: 400px;
+	width: 300px;
 }
 #tempoBPM {
 	width: calc( 180px - 6px - 32px );

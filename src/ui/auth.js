@@ -74,7 +74,7 @@ function UIauthLoginSubmit( obj ) {
 
 function UIauthLoginThen( me ) {
 	DOM.app.classList.add( "logged" );
-	DOM.headUser.href = `https://gridsound.com/#/u/${ me.username }`;
+	DOM.headUser.href = `https://squencer.netlify.app/#/u/${ me.username }`;
 	DOM.headUser.style.backgroundImage = `url("${ me.avatar }")`;
 	return me;
 }

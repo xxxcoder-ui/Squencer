@@ -19,5 +19,5 @@
 	display: none;
 }
 #app:not( .logged ) #cloudNewCmp {
-	color: #888;
+	color: C4C4C4;
 }
